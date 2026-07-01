@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Digital Twin — Backend Console</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#060b12;--card:#0c1422;--card2:#111c2e;--rim:rgba(96,165,250,.13);
+  --blue:#60a5fa;--cyan:#22d3ee;--green:#34d399;--yellow:#fbbf24;
+  --orange:#f97316;--red:#f87171;--purple:#a78bfa;--text:#d4dff0;--muted:#4b5e78;
+  --mono:'Courier New',monospace;
+}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);}
+header{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--rim);background:rgba(6,11,18,.95);flex-shrink:0;}
+header h1{font-size:.9rem;font-weight:800;letter-spacing:.05em;color:#f0f5ff;}
+#conn{display:flex;align-items:center;gap:7px;font-size:.7rem;font-weight:700;}
+#connDot{width:8px;height:8px;border-radius:50%;background:var(--red);transition:background .3s;}
+#connDot.ok{background:var(--green);}
+.layout{display:grid;grid-template-columns:260px 1fr 1fr;grid-template-rows:auto 1fr 1fr;height:calc(100vh - 47px);gap:0;}
+/* Column 1 — Controls */
+.ctrl{grid-row:1/4;border-right:1px solid var(--rim);overflow-y:auto;padding:14px;}
+/* Column 2+3 — panels */
+.panel{border:1px solid var(--rim);border-left:none;border-top:none;overflow:hidden;display:flex;flex-direction:column;}
+.panel-hdr{padding:8px 12px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--rim);font-size:.67rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);flex-shrink:0;display:flex;justify-content:space-between;align-items:center;}
+.panel-hdr span{color:var(--cyan);font-family:var(--mono);}
+.log{flex:1;overflow-y:auto;padding:8px;font-family:var(--mono);font-size:11.5px;line-height:1.65;}
+.log::-webkit-scrollbar{width:3px;} .log::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);}
+/* State panel */
+#stateGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;}
+.scard{background:var(--card2);border:1px solid var(--rim);border-radius:8px;padding:9px 12px;}
+.scard-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px;}
+.scard-val{font-family:var(--mono);font-size:1.3rem;font-weight:700;line-height:1;}
+.scard-sub{font-size:.65rem;color:var(--muted);margin-top:3px;}
+/* Density bars */
+.dbars{padding:10px 12px;}
+.dbar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.dbar-lbl{font-family:var(--mono);font-size:11px;color:var(--muted);width:22px;}
+.dbar-bg{flex:1;height:16px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;}
+.dbar-fill{height:100%;border-radius:4px;transition:width .8s ease;}
+.dbar-pct{font-family:var(--mono);font-size:11px;font-weight:700;width:36px;text-align:right;}
+/* Controls */
+.ctrl-sec{margin-bottom:16px;}
+.ctrl-sec h3{font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--rim);}
+.ctrl-row{display:flex;gap:6px;margin-bottom:6px;align-items:center;}
+.ctrl-lbl{font-size:.7rem;color:var(--muted);min-width:50px;}
+input[type=range]{flex:1;accent-color:var(--cyan);}
+input[type=number]{background:var(--card2);border:1px solid var(--rim);color:var(--text);border-radius:5px;padding:4px 7px;font-family:var(--mono);font-size:.8rem;width:60px;}
+.btn{padding:7px 10px;border-radius:6px;border:1px solid var(--rim);background:rgba(255,255,255,.04);color:var(--text);font-size:.72rem;font-weight:700;cursor:pointer;transition:all .2s;flex:1;text-align:center;}
+.btn:hover{background:rgba(96,165,250,.1);border-color:rgba(96,165,250,.3);color:var(--blue);}
+.btn.red{border-color:rgba(248,113,113,.3);}.btn.red:hover{background:rgba(248,113,113,.1);color:var(--red);}
+.btn.yellow{border-color:rgba(251,191,36,.3);}.btn.yellow:hover{background:rgba(251,191,36,.1);color:var(--yellow);}
+.btn.purple{border-color:rgba(167,139,250,.3);}.btn.purple:hover{background:rgba(167,139,250,.1);color:var(--purple);}
+.btn.green{border-color:rgba(52,211,153,.3);}.btn.green:hover{background:rgba(52,211,153,.1);color:var(--green);}
+.btn.primary{background:rgba(34,211,238,.1);border-color:rgba(34,211,238,.35);color:var(--cyan);}
+/* Log entries */
+.le{padding:2px 0;display:flex;gap:6px;border-bottom:1px solid rgba(255,255,255,.03);}
+.le-ts{color:var(--muted);white-space:nowrap;flex-shrink:0;}
+.le-type{font-weight:700;flex-shrink:0;min-width:36px;}
+.le-body{color:#8fa8c8;flex:1;word-break:break-all;}
+.t-pub{color:var(--orange);} .t-sub{color:var(--purple);} .t-get{color:var(--green);}
+.t-post{color:var(--blue);} .t-put{color:var(--yellow);} .t-del{color:var(--red);}
+.t-db{color:#7dd3fc;} .t-ai{color:var(--purple);}
+.s200{color:var(--green);} .s201{color:var(--blue);} .s204{color:var(--purple);}
+.s400{color:var(--red);} .s404{color:var(--red);}
+/* Signal boxes */
+.sig-wrap{display:flex;gap:8px;padding:10px;}
+.sig-box{flex:1;background:var(--card2);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:10px;text-align:center;}
+.sig-dir{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+.sig-num{font-family:var(--mono);font-size:2rem;font-weight:700;line-height:1.1;}
+.sig-phase{font-size:.65rem;font-weight:700;margin-top:3px;}
+.sig-bar{height:3px;background:rgba(255,255,255,.06);border-radius:2px;margin-top:8px;}
+.sig-fill{height:100%;border-radius:2px;transition:width 1s linear;}
+/* AI reco */
+.ai-box{padding:10px;display:flex;flex-direction:column;gap:6px;overflow-y:auto;flex:1;}
+.ai-row{display:flex;gap:8px;align-items:center;padding:5px 8px;border-radius:6px;background:rgba(255,255,255,.03);font-family:var(--mono);font-size:11.5px;}
+.ai-row.best{background:rgba(52,211,153,.07);border:1px solid rgba(52,211,153,.2);}
+.ai-badge{font-size:.55rem;font-weight:700;padding:2px 5px;border-radius:3px;flex-shrink:0;}
+.ai-cfg{color:var(--cyan);flex:1;}
+.ai-j{color:var(--yellow);}
+.ai-j.best{color:var(--green);}
+</style>
+</head>
+<body>
+<header>
+  <h1>🚦 Digital Twin Traffic — Backend Console</h1>
+  <div id="conn">
+    <div id="connDot"></div>
+    <span id="connTxt">Connecting…</span>
+    <span id="tickBadge" style="background:rgba(96,165,250,.1);color:var(--blue);padding:2px 8px;border-radius:10px;font-family:var(--mono);margin-left:8px;">tick 0</span>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- Column 1: Controls -->
+  <div class="ctrl">
+
+    <div class="ctrl-sec">
+      <h3>⏱ Giờ Mô Phỏng</h3>
+      <div class="ctrl-row">
+        <span class="ctrl-lbl" id="hourLbl">Giờ: 12</span>
+        <input type="range" min="0" max="23" value="12" id="hourSlider">
+      </div>
+      <button class="btn primary" onclick="setHour()">Áp dụng giờ</button>
+    </div>
+
+    <div class="ctrl-sec">
+      <h3>⚡ Tốc độ</h3>
+      <div class="ctrl-row">
+        <span class="ctrl-lbl" id="speedLbl">×1</span>
+        <input type="range" min="1" max="8" step="0.5" value="1" id="speedSlider">
+      </div>
+      <button class="btn primary" onclick="setSpeed()">Áp dụng tốc độ</button>
+    </div>
+
+    <div class="ctrl-sec">
+      <h3>🚦 Điều Chỉnh Đèn</h3>
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">NS (s)</span>
+        <input type="number" id="nsInput" value="55" min="10" max="80">
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">EW (s)</span>
+        <input type="number" id="ewInput" value="35" min="10" max="80">
+      </div>
+      <button class="btn primary" style="margin-top:4px;width:100%;" onclick="applySignal()">Áp dụng đèn (Socket)</button>
+      <button class="btn" style="margin-top:4px;width:100%;" onclick="applySignalRest()">Áp dụng đèn (REST PUT)</button>
+    </div>
+
+    <div class="ctrl-sec">
+      <h3>🚨 Sự cố</h3>
+      <div class="ctrl-row">
+        <button class="btn red"    onclick="incident('accident')">🚗 Tai nạn</button>
+        <button class="btn yellow" onclick="incident('emergency')">🚑 Cấp cứu</button>
+        <button class="btn purple" onclick="incident('vip')">🚨 VIP</button>
+      </div>
+      <button class="btn green" style="width:100%;margin-top:4px;" onclick="clearIncident()">↺ Reset sự cố</button>
+    </div>
+
+    <div class="ctrl-sec">
+      <h3>🔍 REST API Test</h3>
+      <button class="btn" style="width:100%;margin-bottom:4px;" onclick="fetchState()">GET /intersection/hk01/state</button>
+      <button class="btn" style="width:100%;margin-bottom:4px;" onclick="fetchAI()">GET /ai/scenarios</button>
+      <button class="btn" style="width:100%;" onclick="fetchHistory()">GET /intersection/hk01/history?dir=NS</button>
+    </div>
+
+    <div class="ctrl-sec">
+      <h3>ℹ️ Endpoints</h3>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.8;">
+        GET /api/v1/intersection/:id/state<br>
+        GET /api/v1/intersection/:id/history<br>
+        GET /api/v1/sensor/:loc/latest<br>
+        POST /api/v1/sensor/batch<br>
+        GET /api/v1/ai/scenarios<br>
+        GET /api/v1/ai/recommendation<br>
+        GET /api/v1/signal/:id/current<br>
+        PUT /api/v1/signal/:id/command<br>
+        POST /api/v1/incident<br>
+        DELETE /api/v1/incident/:loc<br>
+        GET /api/v1/health
+      </div>
+    </div>
+  </div>
+
+  <!-- State + Signal -->
+  <div class="panel" style="grid-column:2;grid-row:1;">
+    <div class="panel-hdr">State Vector x(t) <span id="simHourBadge">sim 00:00</span></div>
+    <div id="stateGrid">
+      <div class="scard"><div class="scard-lbl">Throughput</div><div class="scard-val" id="kThroughput">—</div><div class="scard-sub">xe/giờ</div></div>
+      <div class="scard"><div class="scard-lbl">Avg Wait</div><div class="scard-val" id="kWait">—</div><div class="scard-sub">giây TB</div></div>
+      <div class="scard"><div class="scard-lbl">Efficiency</div><div class="scard-val" id="kEff">—</div><div class="scard-sub">% luồng thông</div></div>
+      <div class="scard"><div class="scard-lbl">Optimizations</div><div class="scard-val" id="kOpt">0</div><div class="scard-sub">AI decisions</div></div>
+    </div>
+    <div class="dbars" id="densityBars">
+      <div class="dbar-row"><div class="dbar-lbl">NS</div><div class="dbar-bg"><div class="dbar-fill" id="dNS" style="width:0%"></div></div><div class="dbar-pct" id="pNS">0%</div></div>
+      <div class="dbar-row"><div class="dbar-lbl">EW</div><div class="dbar-bg"><div class="dbar-fill" id="dEW" style="width:0%"></div></div><div class="dbar-pct" id="pEW">0%</div></div>
+      <div class="dbar-row"><div class="dbar-lbl">NE</div><div class="dbar-bg"><div class="dbar-fill" id="dNE" style="width:0%"></div></div><div class="dbar-pct" id="pNE">0%</div></div>
+      <div class="dbar-row"><div class="dbar-lbl">SW</div><div class="dbar-bg"><div class="dbar-fill" id="dSW" style="width:0%"></div></div><div class="dbar-pct" id="pSW">0%</div></div>
+    </div>
+    <div class="sig-wrap">
+      <div class="sig-box">
+        <div class="sig-dir">↕ North–South</div>
+        <div class="sig-num" id="sigNSNum">—</div>
+        <div class="sig-phase" id="sigNSPhase">—</div>
+        <div class="sig-bar"><div class="sig-fill" id="sigNSBar"></div></div>
+      </div>
+      <div class="sig-box">
+        <div class="sig-dir">↔ East–West</div>
+        <div class="sig-num" id="sigEWNum">—</div>
+        <div class="sig-phase" id="sigEWPhase">—</div>
+        <div class="sig-bar"><div class="sig-fill" id="sigEWBar"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Recommendation -->
+  <div class="panel" style="grid-column:3;grid-row:1;">
+    <div class="panel-hdr">AI What-If Scenarios <span id="aiBadge">—</span></div>
+    <div class="ai-box" id="aiBox"></div>
+  </div>
+
+  <!-- MQTT Log -->
+  <div class="panel" style="grid-column:2;grid-row:2/4;">
+    <div class="panel-hdr">MQTT Messages <span id="mqttCount">0 msgs</span></div>
+    <div class="log" id="mqttLog"></div>
+  </div>
+
+  <!-- API + DB Log -->
+  <div class="panel" style="grid-column:3;grid-row:2;">
+    <div class="panel-hdr">REST API Activity <span id="apiCount">0 calls</span></div>
+    <div class="log" id="apiLog"></div>
+  </div>
+  <div class="panel" style="grid-column:3;grid-row:3;">
+    <div class="panel-hdr">InfluxDB Writes <span id="dbCount">0 writes</span></div>
+    <div class="log" id="dbLog"></div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+let mqttN = 0, apiN = 0, dbN = 0;
+
+function ts() {
+  return new Date().toTimeString().slice(0,8);
+}
+
+function densityColor(d) {
+  if (d < 0.28) return '#22c55e';
+  if (d < 0.48) return '#eab308';
+  if (d < 0.68) return '#f97316';
+  if (d < 0.82) return '#ef4444';
+  if (d < 0.93) return '#a855f7';
+  return '#d97706';
+}
+
+function phaseColor(state) {
+  if (state === 'green')  return '#22c55e';
+  if (state === 'yellow') return '#eab308';
+  return '#ef4444';
+}
+
+function addLog(panelId, html) {
+  const el = document.getElementById(panelId);
+  el.insertAdjacentHTML('afterbegin', html);
+  // Keep max 80 entries
+  while (el.children.length > 80) el.removeChild(el.lastChild);
+}
+
+// ── Socket events ──────────────────────────────────────────────────────────
+
+socket.on('connect', () => {
+  document.getElementById('connDot').classList.add('ok');
+  document.getElementById('connTxt').textContent = 'Connected · ' + socket.id.slice(0,8);
+});
+socket.on('disconnect', () => {
+  document.getElementById('connDot').classList.remove('ok');
+  document.getElementById('connTxt').textContent = 'Disconnected';
+});
+
+socket.on('state_update', (s) => {
+  document.getElementById('tickBadge').textContent = 'tick ' + s.tick;
+  document.getElementById('simHourBadge').textContent = `sim ${String(s.sim_hour).padStart(2,'0')}:00`;
+
+  // KPIs
+  document.getElementById('kThroughput').textContent = s.kpis.throughput;
+  document.getElementById('kWait').textContent       = s.kpis.avgWait + 's';
+  document.getElementById('kEff').textContent        = s.kpis.efficiency + '%';
+  document.getElementById('kOpt').textContent        = s.kpis.optimizations;
+
+  // Density bars
+  ['NS','EW','NE','SW'].forEach(dir => {
+    const d = s.densities[dir];
+    const pct = Math.round(d * 100);
+    const col = densityColor(d);
+    document.getElementById('d'+dir).style.cssText = `width:${pct}%;background:${col};`;
+    const p = document.getElementById('p'+dir);
+    p.textContent = pct + '%';
+    p.style.color = col;
+  });
+
+  // Signal
+  const sig = s.signal;
+  const nsCol = phaseColor(sig.ns);
+  const ewCol = phaseColor(sig.ew);
+  document.getElementById('sigNSNum').textContent  = sig.countdown;
+  document.getElementById('sigNSNum').style.color  = nsCol;
+  document.getElementById('sigNSPhase').textContent = sig.ns.toUpperCase();
+  document.getElementById('sigNSPhase').style.color = nsCol;
+  document.getElementById('sigNSBar').style.cssText =
+    `width:${Math.round(sig.countdown/sig.nsGreen*100)}%;background:${nsCol};`;
+
+  document.getElementById('sigEWNum').textContent  = sig.countdown;
+  document.getElementById('sigEWNum').style.color  = ewCol;
+  document.getElementById('sigEWPhase').textContent = sig.ew.toUpperCase();
+  document.getElementById('sigEWPhase').style.color = ewCol;
+  document.getElementById('sigEWBar').style.cssText =
+    `width:${Math.round(sig.countdown/sig.ewGreen*100)}%;background:${ewCol};`;
+
+  // Sync inputs
+  document.getElementById('nsInput').value = sig.nsGreen;
+  document.getElementById('ewInput').value = sig.ewGreen;
+  document.getElementById('hourSlider').value = s.sim_hour;
+  document.getElementById('hourLbl').textContent = 'Giờ: ' + s.sim_hour;
+});
+
+socket.on('ai_recommendation', (r) => {
+  document.getElementById('aiBadge').textContent = `J=${r.current.J} → ${r.best.J}  +${r.improvement}%`;
+  const box = document.getElementById('aiBox');
+  box.innerHTML = r.candidates.map((c, i) => {
+    const isBest = i === 0;
+    const isCur = c.nsGreen === r.current.nsGreen && c.ewGreen === r.current.ewGreen;
+    return `<div class="ai-row ${isBest?'best':''}">
+      <span class="ai-badge" style="background:rgba(${isBest?'52,211,153':'96,165,250'},.15);color:var(--${isBest?'green':'blue'})">
+        ${isBest?'BEST':'#'+c.id}
+      </span>
+      <span class="ai-cfg">NS=${c.nsGreen}s / EW=${c.ewGreen}s</span>
+      <span class="ai-j ${isBest?'best':''}">J=${c.J}</span>
+      ${isCur?'<span style="color:var(--muted);font-size:10px;">←current</span>':''}
+    </div>`;
+  }).join('');
+});
+
+socket.on('mqtt_log', (m) => {
+  mqttN++;
+  document.getElementById('mqttCount').textContent = mqttN + ' msgs';
+  const col = m.type === 'PUB' ? 'pub' : 'sub';
+  addLog('mqttLog', `<div class="le">
+    <span class="le-ts">${ts()}</span>
+    <span class="le-type t-${col}">${m.type}</span>
+    <span class="le-body"><span style="color:#7dd3fc;">${m.topic}</span>  <span style="color:#8fa8c8;">${m.payload}</span></span>
+  </div>`);
+});
+
+socket.on('api_log', (m) => {
+  apiN++;
+  document.getElementById('apiCount').textContent = apiN + ' calls';
+  const meth = m.method.toLowerCase();
+  const cls = `s${m.status}`;
+  addLog('apiLog', `<div class="le">
+    <span class="le-ts">${ts()}</span>
+    <span class="le-type t-${meth}">${m.method}</span>
+    <span class="le-body">
+      <span style="color:#8fa8c8;">${m.path}</span>
+      <span class="${cls}"> ${m.status}</span>
+      <span style="color:var(--muted);"> ${m.ms}ms</span>
+    </span>
+  </div>`);
+});
+
+socket.on('db_log', (m) => {
+  dbN++;
+  document.getElementById('dbCount').textContent = dbN + ' writes';
+  addLog('dbLog', `<div class="le">
+    <span class="le-ts">${ts()}</span>
+    <span class="le-type t-db">WRITE</span>
+    <span class="le-body" style="color:#8fa8c8;">${m.lp}</span>
+  </div>`);
+});
+
+socket.on('signal_changed', (e) => {
+  addLog('apiLog', `<div class="le">
+    <span class="le-ts">${ts()}</span>
+    <span class="le-type" style="color:var(--cyan);">SIG</span>
+    <span class="le-body">Applied by <b style="color:var(--yellow);">${e.src}</b> → NS=${e.next.nsGreen}s EW=${e.next.ewGreen}s</span>
+  </div>`);
+});
+
+socket.on('incident_changed', (e) => {
+  addLog('mqttLog', `<div class="le">
+    <span class="le-ts">${ts()}</span>
+    <span class="le-type" style="color:var(--red);">INC</span>
+    <span class="le-body">${e.active ? '🚨 ' + e.type.toUpperCase() : '✅ CLEARED'}</span>
+  </div>`);
+});
+
+// ── Controls ───────────────────────────────────────────────────────────────
+
+document.getElementById('hourSlider').addEventListener('input', e => {
+  document.getElementById('hourLbl').textContent = 'Giờ: ' + e.target.value;
+});
+document.getElementById('speedSlider').addEventListener('input', e => {
+  document.getElementById('speedLbl').textContent = '×' + e.target.value;
+});
+
+function setHour() {
+  socket.emit('set_hour', { hour: parseInt(document.getElementById('hourSlider').value) });
+}
+function setSpeed() {
+  socket.emit('set_speed', { multiplier: parseFloat(document.getElementById('speedSlider').value) });
+}
+function applySignal() {
+  socket.emit('apply_signal', {
+    ns_green: parseInt(document.getElementById('nsInput').value),
+    ew_green: parseInt(document.getElementById('ewInput').value),
+    src: 'Console-Socket',
+  });
+}
+async function applySignalRest() {
+  const r = await fetch('/api/v1/signal/hk01/command', {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      ns_green: parseInt(document.getElementById('nsInput').value),
+      ew_green: parseInt(document.getElementById('ewInput').value),
+      src: 'Console-REST',
+    })
+  });
+  // status 204 — no body
+}
+function incident(type) {
+  socket.emit('trigger_incident', { type });
+}
+function clearIncident() {
+  socket.emit('clear_incident');
+}
+
+async function fetchState() {
+  const r = await fetch('/api/v1/intersection/hk01/state');
+  const j = await r.json();
+  console.log('[REST] GET state:', j);
+  alert('Xem Console → Network tab\n\n' + JSON.stringify(j.data?.densities, null, 2));
+}
+async function fetchAI() {
+  const r = await fetch('/api/v1/ai/scenarios');
+  const j = await r.json();
+  console.log('[REST] GET ai/scenarios:', j);
+  alert(`Best: NS=${j.data?.best?.nsGreen}s EW=${j.data?.best?.ewGreen}s J=${j.data?.best?.J}\nImprovement: ${j.data?.improvement}%`);
+}
+async function fetchHistory() {
+  const r = await fetch('/api/v1/intersection/hk01/history?dir=NS&n=10');
+  const j = await r.json();
+  console.log('[REST] GET history:', j);
+  alert('Last 10 NS readings:\n' + j.data?.map(p => `${new Date(p.ts).toTimeString().slice(0,8)} → ${(p.value*100).toFixed(1)}%`).join('\n'));
+}
+</script>
+</body>
+</html>

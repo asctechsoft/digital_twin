@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🚦 Digital Twin — Nút Giao Thông Thông Minh (Live)</title>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="h-left">
+    <div class="live-dot" id="liveDot"></div>
+    <div>
+      <div class="h-title">🚦 Digital Twin — Nút Giao Thông Thông Minh</div>
+      <div class="h-sub">Ngã Tư Hoàn Kiếm – Đinh Tiên Hoàng · Hà Nội · <span id="connTxt">Đang kết nối…</span></div>
+    </div>
+  </div>
+  <div class="h-right">
+    <div class="sys-badges">
+      <span class="sys-badge online" id="badge-socket">● Socket</span>
+      <span class="sys-badge online" id="badge-api">● REST API</span>
+      <span class="sys-badge online" id="badge-mqtt">● MQTT</span>
+      <span class="sys-badge online" id="badge-db">● InfluxDB</span>
+      <span class="sys-badge online" id="badge-ai">● AI Engine</span>
+    </div>
+    <div>
+      <div class="clock" id="clockDisp">--:--:--</div>
+      <div style="font-size:0.62rem;color:var(--text2);text-align:right;" id="simPeriod">Giờ mô phỏng: --h</div>
+    </div>
+  </div>
+</header>
+
+<!-- ── ARCHITECTURE FLOW BAR ── -->
+<div class="arch-bar">
+  <div class="arch-step l1"><div class="arch-num">1</div><div><div>Physical World</div><div style="font-size:0.6rem;opacity:.7;">Cảm biến IoT · Camera · Loop từ</div></div><span class="arch-pulse" style="background:#f87171;"></span></div>
+  <span class="arch-arrow">⟶</span>
+  <div class="arch-step l2"><div class="arch-num">2</div><div><div>Data Ingestion</div><div style="font-size:0.6rem;opacity:.7;">MQTT · REST API · WebSocket</div></div><span class="arch-pulse" style="background:#fb923c;"></span></div>
+  <span class="arch-arrow">⟶</span>
+  <div class="arch-step l3"><div class="arch-num">3</div><div><div>Digital Twin Engine</div><div style="font-size:0.6rem;opacity:.7;">State x(t) · TimeSeries DB · Sync</div></div><span class="arch-pulse" style="background:#facc15;"></span></div>
+  <span class="arch-arrow">⟶</span>
+  <div class="arch-step l4"><div class="arch-num">4</div><div><div>AI / What-If Engine</div><div style="font-size:0.6rem;opacity:.7;">Optimization · Prediction · Scenario</div></div><span class="arch-pulse" style="background:#34d399;"></span></div>
+  <span class="arch-arrow">⟶</span>
+  <div class="arch-step l5"><div class="arch-num">5</div><div><div>Visualization + Control</div><div style="font-size:0.6rem;opacity:.7;">Dashboard · Command · Feedback</div></div><span class="arch-pulse" style="background:#60a5fa;"></span></div>
+  <span class="arch-arrow" style="margin-left:4px;">⟵ Feedback Loop ⟵</span>
+</div>
+
+<!-- ── MAIN GRID ── -->
+<div class="main">
+
+  <!-- ═══ COL 1: CANVAS + CHART ═══ -->
+  <div style="display:flex;flex-direction:column;gap:14px;">
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:#22c55e;box-shadow:0 0 8px #22c55e;"></span>
+        Bản Đồ Ngã Tư 2D — Real-time
+        <span id="incBadge" class="incident-badge"></span>
+        <span style="margin-left:auto;font-size:0.62rem;color:#34d399;">● LIVE</span>
+      </div>
+      <canvas id="cvMain" width="620" height="440"></canvas>
+      <div class="explain">
+        <strong>Lớp 5 – Visualization:</strong> Mỗi nhánh đường hiển thị màu theo mật độ xe thực
+        nhận từ <strong>State Vector x(t)</strong> của backend qua Socket.IO. Xe ô tô di chuyển nhanh/chậm theo mật độ thật.
+        Đèn tín hiệu phản ánh pha do Twin Engine (Layer 3) phát ra.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:var(--cyan);"></span>
+        Biểu Đồ Mật Độ Lịch Sử (real history từ backend)
+      </div>
+      <canvas id="cvChart" width="620" height="130"></canvas>
+      <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;">
+        <span style="font-size:0.65rem;display:flex;align-items:center;gap:4px;"><span style="width:14px;height:3px;background:#60a5fa;display:inline-block;border-radius:2px;"></span>NS Bắc–Nam</span>
+        <span style="font-size:0.65rem;display:flex;align-items:center;gap:4px;"><span style="width:14px;height:3px;background:#34d399;display:inline-block;border-radius:2px;"></span>EW Đông–Tây</span>
+        <span style="font-size:0.65rem;display:flex;align-items:center;gap:4px;"><span style="width:14px;height:3px;background:#fbbf24;display:inline-block;border-radius:2px;"></span>NE Đông Bắc</span>
+        <span style="font-size:0.65rem;display:flex;align-items:center;gap:4px;"><span style="width:14px;height:3px;background:#f97316;display:inline-block;border-radius:2px;"></span>SW Tây Nam</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ COL 2: SIGNAL + DENSITY + AI + CONTROL ═══ -->
+  <div style="display:flex;flex-direction:column;gap:14px;">
+
+    <!-- Signal State -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:#fbbf24;"></span>Trạng Thái Đèn Tín Hiệu (live)</div>
+      <div class="sig-grid">
+        <div class="sig-box">
+          <div class="sig-dir">↕ Bắc–Nam (NS)</div>
+          <div class="sig-countdown" id="sig-ns-cd">--</div>
+          <div class="sig-phase" id="sig-ns-ph">—</div>
+          <div class="sig-bar-bg"><div class="sig-bar-fill" id="sig-ns-bar" style="width:0%;background:#22c55e;"></div></div>
+        </div>
+        <div class="sig-box">
+          <div class="sig-dir">↔ Đông–Tây (EW)</div>
+          <div class="sig-countdown" id="sig-ew-cd">--</div>
+          <div class="sig-phase" id="sig-ew-ph">—</div>
+          <div class="sig-bar-bg"><div class="sig-bar-fill" id="sig-ew-bar" style="width:0%;background:#ef4444;"></div></div>
+        </div>
+      </div>
+      <div style="margin-top:8px;display:flex;justify-content:space-between;font-size:0.68rem;">
+        <span style="color:var(--text2);">Chu kỳ: <span id="cycleLenLbl" style="font-family:'JetBrains Mono';color:var(--cyan);">--s</span></span>
+        <span style="color:var(--text2);">Phase: <span id="phaseLbl" style="color:var(--green);font-weight:700;">—</span></span>
+        <span style="color:var(--text2);">Tick #<span id="cycleNum" style="font-family:'JetBrains Mono';color:var(--blue);">0</span></span>
+      </div>
+    </div>
+
+    <!-- Density + State Vector Tabs -->
+    <div class="card">
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="density">Mật Độ</button>
+        <button class="tab-btn" data-tab="state">State Vector</button>
+        <button class="tab-btn" data-tab="analytics">Analytics</button>
+      </div>
+      <div id="tab-density" class="tab-pane active">
+        <div class="card-title" style="margin-bottom:10px;"><span class="dot" style="background:var(--orange);"></span>Mật Độ Xe Theo Hướng</div>
+        <div id="densityBars"></div>
+      </div>
+      <div id="tab-state" class="tab-pane">
+        <div class="card-title" style="margin-bottom:8px;">📐 State Vector x(t)</div>
+        <pre id="stateVec"></pre>
+      </div>
+      <div id="tab-analytics" class="tab-pane">
+        <div class="card-title" style="margin-bottom:8px;">📊 Analytics Thống Kê</div>
+        <div id="analyticsPanel"></div>
+      </div>
+    </div>
+
+    <!-- AI Panel -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--green);"></span>AI What-If Analysis (Layer 4)</div>
+      <div class="ai-wrap">
+        <div class="ai-header">⚡ Kịch Bản Tối Ưu — <span id="aiConf" style="color:#fbbf24;">chờ dữ liệu…</span></div>
+        <div id="scenarioList"></div>
+        <button class="apply-btn" id="applyBtn">✅ Áp Dụng Đề Xuất Tốt Nhất</button>
+      </div>
+      <div class="explain" style="margin-top:8px;">
+        <strong>Hàm mục tiêu:</strong> J = Σ(density²) → nhỏ nhất.
+        Backend chạy <strong>7 kịch bản</strong>, chọn J thấp nhất; nút Áp Dụng gửi lệnh
+        <code style="color:var(--cyan);">apply_signal</code> qua Socket → đóng <strong>Feedback Loop</strong>.
+      </div>
+    </div>
+
+    <!-- Incident Controls -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--red);"></span>Giả Lập Sự Cố (Incident Simulation)</div>
+      <div id="activeBadge"></div>
+      <div class="incident-btns">
+        <button class="inc-btn accident"  id="incAccident">🚗 Tai Nạn</button>
+        <button class="inc-btn emergency" id="incEmergency">🚑 Cấp Cứu</button>
+        <button class="inc-btn vip"       id="incVip">🚨 VIP Convoy</button>
+        <button class="inc-btn reset"     id="incReset">↺ Reset</button>
+      </div>
+      <div class="explain" style="margin-top:8px;">
+        <strong>Thử "Xe Cấp Cứu":</strong> backend đẩy mật độ về ưu tiên hướng NS và phát cảnh báo qua MQTT topic
+        <code style="color:var(--cyan);">incident/alert</code>.
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--blue);"></span>Điều Khiển (gửi tới backend)</div>
+      <div class="ctrl-row">
+        <label>Tốc độ engine:</label>
+        <input type="range" id="speedSlider" min="1" max="8" step="0.5" value="1">
+        <div class="ctrl-val" id="speedVal">1×</div>
+      </div>
+      <div class="ctrl-row">
+        <label>Giờ mô phỏng:</label>
+        <input type="range" id="hourSlider" min="0" max="23" value="12">
+        <div class="ctrl-val" id="hourVal">12h</div>
+      </div>
+      <div class="card-title" style="margin:10px 0 6px;font-size:0.62rem;">🚦 Đặt đèn thủ công</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <label style="font-size:0.72rem;color:var(--text2);">NS</label>
+        <input type="number" id="nsInput" value="55" min="10" max="80" class="num">
+        <label style="font-size:0.72rem;color:var(--text2);">EW</label>
+        <input type="number" id="ewInput" value="35" min="10" max="80" class="num">
+        <button id="applyManual" class="mini-btn">Áp dụng</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:10px;">
+        <button id="freezeBtn" style="flex:1;padding:7px;border:1px solid var(--border2);background:rgba(255,255,255,0.04);color:var(--text);border-radius:7px;cursor:pointer;font-size:0.75rem;font-weight:600;">⏸ Dừng animation</button>
+        <button id="restApplyBtn" style="flex:1;padding:7px;border:1px solid var(--border2);background:rgba(255,255,255,0.04);color:var(--text);border-radius:7px;cursor:pointer;font-size:0.75rem;font-weight:600;">⇄ Áp đèn qua REST</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══ COL 3: BACKEND ACTIVITY (REAL) ═══ -->
+  <div style="display:flex;flex-direction:column;gap:14px;">
+
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:var(--green);"></span>
+        REST API Activity
+        <span style="margin-left:auto;font-size:0.62rem;" id="apiCount">0 calls</span>
+      </div>
+      <div class="log-panel" id="apiLog"></div>
+      <div class="explain" style="margin-top:8px;">
+        <strong>Backend thật:</strong> Node.js/Express tại <code style="color:var(--cyan);" id="apiBaseLbl">http://localhost:3000</code>.
+        Mỗi request được server broadcast về qua sự kiện <code style="color:var(--cyan);">api_log</code>.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:var(--orange);"></span>
+        MQTT Broker Messages
+        <span style="margin-left:auto;font-size:0.62rem;" id="mqttCount">0 msgs</span>
+      </div>
+      <div class="log-panel" id="mqttLog"></div>
+      <div class="explain" style="margin-top:8px;">
+        <strong>Broker thật:</strong> aedes MQTT (in-process). QoS 1 cho lệnh đèn/sự cố, QoS 0 cho sensor data.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:var(--purple);"></span>
+        InfluxDB TimeSeries Writes
+        <span style="margin-left:auto;font-size:0.62rem;" id="dbCount">0 writes</span>
+      </div>
+      <div class="log-panel" id="dbLog"></div>
+      <div class="explain" style="margin-top:8px;">
+        <strong>Line Protocol thật:</strong> mỗi tick ghi 4 hướng <code style="color:var(--cyan);">traffic_density</code> + signal + KPI.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--cyan);"></span>System Health — Backend</div>
+      <div class="health-grid">
+        <div class="health-item"><div class="health-val" id="h-thr">--</div><div class="health-lbl">Xe/giờ</div><div class="health-bar"><div class="health-bar-fill" id="h-thr-bar" style="width:0%;background:#fbbf24;"></div></div></div>
+        <div class="health-item"><div class="health-val" id="h-lat">--</div><div class="health-lbl">API Latency</div><div class="health-bar"><div class="health-bar-fill" id="h-lat-bar" style="width:0%;background:#a78bfa;"></div></div></div>
+        <div class="health-item"><div class="health-val" id="h-eff">--</div><div class="health-lbl">Efficiency</div><div class="health-bar"><div class="health-bar-fill" id="h-eff-bar" style="width:0%;background:#34d399;"></div></div></div>
+        <div class="health-item"><div class="health-val" id="h-db">0</div><div class="health-lbl">DB Points</div><div class="health-bar"><div class="health-bar-fill" id="h-db-bar" style="width:0%;background:#60a5fa;"></div></div></div>
+        <div class="health-item"><div class="health-val" id="h-uptime">0s</div><div class="health-lbl">Uptime</div><div class="health-bar"><div class="health-bar-fill" id="h-uptime-bar" style="width:0%;background:#34d399;"></div></div></div>
+        <div class="health-item"><div class="health-val" id="h-ai">--</div><div class="health-lbl">AI Improve</div><div class="health-bar"><div class="health-bar-fill" id="h-ai-bar" style="width:0%;background:#a78bfa;"></div></div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── KPI ROW ── -->
+<div class="kpi-row">
+  <div class="kpi"><div class="kpi-val" id="kpi-cycles" style="color:var(--blue);">0</div><div class="kpi-lbl">Tick đã chạy</div><div class="kpi-delta" id="kpi-cycles-d" style="color:var(--text2);">–</div></div>
+  <div class="kpi"><div class="kpi-val" id="kpi-decisions" style="color:var(--green);">0</div><div class="kpi-lbl">Quyết định AI</div><div class="kpi-delta" style="color:var(--green);">Feedback loops</div></div>
+  <div class="kpi"><div class="kpi-val" id="kpi-density" style="color:var(--orange);">0%</div><div class="kpi-lbl">Mật độ TB</div><div class="kpi-delta" id="kpi-density-d" style="color:var(--text2);">–</div></div>
+  <div class="kpi"><div class="kpi-val" id="kpi-wait" style="color:var(--yellow);">0s</div><div class="kpi-lbl">Thời gian chờ TB</div><div class="kpi-delta" id="kpi-wait-d" style="color:var(--text2);">–</div></div>
+  <div class="kpi"><div class="kpi-val" id="kpi-throughput" style="color:var(--cyan);">0</div><div class="kpi-lbl">Xe/giờ (throughput)</div><div class="kpi-delta" id="kpi-throughput-d" style="color:var(--text2);">–</div></div>
+  <div class="kpi"><div class="kpi-val" id="kpi-eff" style="color:var(--green);">0%</div><div class="kpi-lbl">Hiệu suất luồng</div><div class="kpi-delta" style="color:var(--green);font-size:0.6rem;">1 − mật độ TB</div></div>
+</div>
+
+<!-- ── SYSTEM LOG ── -->
+<div class="syslog-wrap">
+  <div class="card-title" style="padding:0 0 8px 0;">
+    📜 Nhật Ký Hệ Thống — Feedback Loop
+    <span style="margin-left:8px;">
+      <span style="color:#60a5fa;font-size:0.65rem;">■ Physical</span> &nbsp;
+      <span style="color:#a78bfa;font-size:0.65rem;">■ Digital</span> &nbsp;
+      <span style="color:#34d399;font-size:0.65rem;">■ Feedback</span> &nbsp;
+      <span style="color:#fbbf24;font-size:0.65rem;">■ Warning</span> &nbsp;
+      <span style="color:#f87171;font-size:0.65rem;">■ Incident</span>
+    </span>
+  </div>
+  <div class="syslog" id="syslog"></div>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

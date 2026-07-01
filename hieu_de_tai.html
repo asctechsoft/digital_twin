@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📖 Hiểu Đề Tài — Digital Twin Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#080c14;--card:#0f1623;--card2:#141e30;--rim:rgba(96,165,250,0.14);
+  --blue:#60a5fa;--cyan:#22d3ee;--green:#34d399;--yellow:#fbbf24;
+  --orange:#f97316;--red:#f87171;--purple:#a78bfa;
+  --text:#dde4f0;--muted:#64748b;
+  --mono:'Courier New',Courier,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+html,body{height:100%;overflow:hidden;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);display:flex;flex-direction:column;}
+#progressBar{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--cyan),var(--blue));transition:width .4s ease;z-index:100;box-shadow:0 0 10px var(--cyan);}
+.topbar{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:12px 28px;border-bottom:1px solid var(--rim);background:rgba(8,12,20,0.95);}
+.topbar-title{font-size:0.9rem;font-weight:700;color:#f0f5ff;}
+.topbar-sub{font-size:0.68rem;color:var(--muted);margin-top:2px;}
+.slide-counter{font-family:var(--mono);font-size:0.8rem;color:var(--muted);background:rgba(255,255,255,0.05);padding:4px 12px;border-radius:20px;border:1px solid var(--rim);}
+.slide-counter span{color:var(--cyan);font-weight:700;}
+.toc-btn{padding:6px 14px;border-radius:7px;border:1px solid var(--rim);background:rgba(255,255,255,0.04);color:var(--text);font-size:0.72rem;font-weight:600;cursor:pointer;transition:all .2s;}
+.toc-btn:hover{background:rgba(96,165,250,0.1);color:var(--blue);}
+#tocOverlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);align-items:center;justify-content:center;}
+#tocOverlay.open{display:flex;}
+.toc-box{background:var(--card);border:1px solid var(--rim);border-radius:16px;padding:28px;width:min(600px,90vw);max-height:80vh;overflow-y:auto;}
+.toc-box h2{font-size:1rem;margin-bottom:18px;color:var(--cyan);}
+.toc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.toc-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;transition:background .15s;border:1px solid transparent;}
+.toc-item:hover{background:rgba(96,165,250,0.08);border-color:var(--rim);}
+.toc-item.active{background:rgba(34,211,238,0.08);border-color:rgba(34,211,238,0.25);}
+.toc-num{width:26px;height:26px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;font-family:var(--mono);}
+.toc-name{font-size:0.8rem;line-height:1.3;}
+.toc-sub{font-size:0.65rem;color:var(--muted);margin-top:2px;}
+.toc-close{margin-top:18px;width:100%;padding:9px;border:1px solid var(--rim);background:rgba(255,255,255,0.04);color:var(--muted);border-radius:8px;cursor:pointer;font-size:0.78rem;font-weight:600;}
+.slides-wrap{flex:1;overflow:hidden;position:relative;}
+.slide{position:absolute;inset:0;display:flex;align-items:flex-start;justify-content:center;padding:28px 28px 20px;opacity:0;pointer-events:none;transform:translateX(50px);transition:opacity .35s ease,transform .35s ease;overflow-y:auto;}
+.slide.active{opacity:1;pointer-events:all;transform:translateX(0);}
+.slide.exit-left{opacity:0;transform:translateX(-50px);}
+.slide-inner{width:100%;max-width:840px;}
+.slide-badge{display:inline-flex;align-items:center;gap:8px;font-size:0.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:4px 12px;border-radius:20px;margin-bottom:16px;}
+.slide-title{font-size:clamp(1.4rem,3vw,2rem);font-weight:800;color:#f0f5ff;line-height:1.2;margin-bottom:10px;}
+.slide-desc{font-size:0.95rem;color:var(--muted);line-height:1.7;margin-bottom:22px;max-width:680px;}
+.card{background:var(--card);border:1px solid var(--rim);border-radius:12px;padding:16px 18px;margin-bottom:12px;position:relative;overflow:hidden;}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(96,165,250,.3),transparent);}
+.card-lbl{font-size:0.67rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:9px;}
+.explain{border-left:3px solid var(--blue);border-radius:0 8px 8px 0;background:rgba(96,165,250,.05);padding:11px 15px;margin-bottom:12px;font-size:0.87rem;color:#b0c4de;line-height:1.7;}
+.explain strong{color:var(--cyan);}
+.explain.green{border-color:var(--green);}.explain.green strong{color:var(--green);}
+.explain.yellow{border-color:var(--yellow);}.explain.yellow strong{color:var(--yellow);}
+.explain.orange{border-color:var(--orange);}.explain.orange strong{color:var(--orange);}
+.explain.purple{border-color:var(--purple);}.explain.purple strong{color:var(--purple);}
+.code-wrap{overflow-x:auto;border-radius:10px;margin-bottom:12px;}
+.code-hdr{background:#07101d;border:1px solid rgba(96,165,250,.15);border-bottom:none;border-radius:10px 10px 0 0;padding:7px 14px;display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted);}
+.dots{display:flex;gap:5px;}.dots span{width:9px;height:9px;border-radius:50%;}
+pre{background:#07101d;border:1px solid rgba(96,165,250,.15);border-radius:0 0 10px 10px;padding:14px 16px;font-family:var(--mono);font-size:12.5px;line-height:1.75;color:#c9d6f0;overflow-x:auto;white-space:pre;}
+.kw{color:#c792ea;}.fn{color:#82aaff;}.str{color:#c3e88d;}.num{color:#f78c6c;}.cm{color:#546e7a;font-style:italic;}.prop{color:#89ddff;}
+.tbl{overflow-x:auto;border-radius:10px;margin-bottom:12px;}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--rim);border-radius:10px;overflow:hidden;font-size:13px;}
+th{background:rgba(96,165,250,.07);padding:8px 13px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--rim);}
+td{padding:8px 13px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+td code{font-family:var(--mono);font-size:11.5px;background:rgba(96,165,250,.1);color:var(--cyan);padding:1px 6px;border-radius:4px;}
+.b{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;}
+.b-g{background:rgba(52,211,153,.15);color:var(--green);}
+.b-y{background:rgba(251,191,36,.15);color:var(--yellow);}
+.b-r{background:rgba(248,113,113,.15);color:var(--red);}
+.b-b{background:rgba(96,165,250,.15);color:var(--blue);}
+.b-p{background:rgba(167,139,250,.15);color:var(--purple);}
+.b-o{background:rgba(249,115,22,.15);color:var(--orange);}
+.dens-row{display:flex;align-items:center;gap:10px;margin-bottom:7px;}
+.dens-lbl{font-family:var(--mono);font-size:12px;color:var(--muted);width:24px;}
+.dens-bg{flex:1;height:20px;background:rgba(255,255,255,.05);border-radius:5px;overflow:hidden;}
+.dens-fill{height:100%;border-radius:5px;position:relative;}
+.dens-fill::after{content:'';position:absolute;top:0;left:0;right:0;height:50%;background:rgba(255,255,255,.12);border-radius:5px 5px 0 0;}
+.dens-pct{font-family:var(--mono);font-size:12px;width:34px;text-align:right;font-weight:700;}
+.flow{display:flex;align-items:center;gap:0;flex-wrap:nowrap;overflow-x:auto;padding:8px 0;}
+.flow-box{flex-shrink:0;background:var(--card2);border:1px solid var(--rim);border-radius:8px;padding:10px 13px;font-size:12px;text-align:center;min-width:100px;}
+.flow-box b{display:block;margin-bottom:3px;} .flow-box small{color:var(--muted);font-size:10px;}
+.flow-arr{flex-shrink:0;color:var(--muted);font-size:18px;padding:0 7px;}
+.sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.sig-box{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:14px;text-align:center;}
+.sig-dir{font-size:11px;color:var(--muted);margin-bottom:6px;}
+.sig-num{font-family:var(--mono);font-size:2.2rem;font-weight:700;line-height:1;}
+.sig-ph{font-size:11px;font-weight:700;margin-top:4px;}
+.sig-bar{height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:8px;}
+.sig-fill{height:4px;border-radius:2px;}
+.color-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+.cc{border-radius:8px;padding:10px 12px;} .cc b{display:block;margin-bottom:3px;}
+.cc small{font-family:var(--mono);font-size:10px;opacity:.7;} .cc p{font-size:11px;color:var(--muted);margin-top:4px;}
+.mq{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:12px;align-items:flex-start;}
+.mq:last-child{border-bottom:none;}
+.mq-ts{color:var(--muted);white-space:nowrap;} .mq-pub{color:var(--orange);font-weight:700;min-width:32px;} .mq-sub{color:var(--purple);font-weight:700;min-width:32px;} .mq-top{color:#7dd3fc;} .mq-pay{color:var(--muted);}
+.db{display:flex;gap:5px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:12px;flex-wrap:wrap;}
+.db:last-child{border-bottom:none;} .db-m{color:var(--yellow);} .db-t{color:var(--green);} .db-f{color:var(--blue);} .db-ts{color:var(--muted);margin-left:auto;}
+.api{display:flex;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:12px;align-items:center;}
+.api:last-child{border-bottom:none;} .m-get{color:var(--green);font-weight:700;min-width:38px;} .m-post{color:var(--blue);font-weight:700;min-width:38px;} .m-put{color:var(--yellow);font-weight:700;min-width:38px;} .api-path{color:var(--muted);flex:1;}
+.s200{background:rgba(52,211,153,.15);color:var(--green);padding:1px 5px;border-radius:3px;font-size:10px;}
+.s201{background:rgba(96,165,250,.15);color:var(--blue);padding:1px 5px;border-radius:3px;font-size:10px;}
+.s204{background:rgba(167,139,250,.15);color:var(--purple);padding:1px 5px;border-radius:3px;font-size:10px;}
+.api-ms{color:var(--muted);font-size:11px;}
+.navbar{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:14px 28px;border-top:1px solid var(--rim);background:rgba(8,12,20,0.95);gap:16px;}
+.nav-btn{display:flex;align-items:center;gap:8px;padding:10px 22px;border-radius:9px;border:1px solid var(--rim);background:rgba(255,255,255,0.04);color:var(--text);font-size:0.82rem;font-weight:700;cursor:pointer;transition:all .2s;min-width:130px;justify-content:center;}
+.nav-btn:hover:not(:disabled){background:rgba(96,165,250,0.1);border-color:rgba(96,165,250,0.3);color:var(--blue);}
+.nav-btn:disabled{opacity:.3;cursor:not-allowed;}
+.nav-btn.primary{background:linear-gradient(135deg,rgba(34,211,238,.15),rgba(96,165,250,.15));border-color:rgba(96,165,250,0.35);color:var(--cyan);}
+.nav-btn.primary:hover{background:linear-gradient(135deg,rgba(34,211,238,.25),rgba(96,165,250,.25));}
+.dots-nav{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:center;}
+.dot-nav{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.12);cursor:pointer;transition:all .2s;}
+.dot-nav.active{background:var(--cyan);box-shadow:0 0 8px var(--cyan);width:20px;border-radius:4px;}
+.dot-nav:hover{background:rgba(96,165,250,.5);}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px;}
+</style>
+</head>
+<body>
+<div id="progressBar" style="width:0%"></div>
+
+<div class="topbar">
+  <div>
+    <div class="topbar-title">📖 Hiểu Đề Tài — Digital Twin Dashboard</div>
+    <div class="topbar-sub">Bấm "Tiếp theo" hoặc phím ← → để chuyển phần · 12 phần giải thích</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <button class="toc-btn" onclick="toggleTOC()">☰ Mục lục</button>
+    <div class="slide-counter">Phần <span id="curNum">1</span> / <span id="totNum">12</span></div>
+  </div>
+</div>
+
+<div id="tocOverlay" onclick="if(event.target===this)toggleTOC()">
+  <div class="toc-box">
+    <h2>📋 Mục Lục — Bấm để nhảy tới phần bất kỳ</h2>
+    <div class="toc-grid" id="tocGrid"></div>
+    <button class="toc-close" onclick="toggleTOC()">✕ Đóng</button>
+  </div>
+</div>
+
+<div class="slides-wrap">
+
+<!-- SLIDE 1 -->
+<div class="slide active" data-idx="0"><div class="slide-inner">
+  <div class="slide-badge" style="background:rgba(34,211,238,.1);color:var(--cyan);border:1px solid rgba(34,211,238,.2);">01 · Tổng Quan</div>
+  <div class="slide-title">Digital Twin là gì?</div>
+  <div class="slide-desc">Bản sao số của hệ thống thực — cập nhật liên tục và có thể ra lệnh điều khiển ngược lại thực tế.</div>
+  <div class="explain"><strong>Ví dụ dễ hiểu:</strong> Google Maps là bản sao số của đường bộ — nhưng nó chỉ <em>hiển thị</em>. Digital Twin còn <em>điều khiển</em>: đọc trạng thái thực → AI tính toán → gửi lệnh tối ưu ngược về hệ thống vật lý.</div>
+  <div class="card"><div class="card-lbl">So sánh nhanh</div>
+    <div class="tbl"><table>
+      <tr><th>Hệ thống</th><th>Giám sát</th><th>Tự điều khiển</th><th>Bản sao số</th></tr>
+      <tr><td>Camera an ninh</td><td>✅</td><td>❌</td><td>❌</td></tr>
+      <tr><td>Google Maps</td><td>✅</td><td>❌</td><td>⚡ Một phần</td></tr>
+      <tr><td><strong>Digital Twin này</strong></td><td>✅</td><td>✅</td><td>✅</td></tr>
+    </table></div>
+  </div>
+  <div class="card"><div class="card-lbl">Ứng dụng Digital Twin trên thế giới</div>
+    <div class="tbl"><table>
+      <tr><th>Lĩnh vực</th><th>Ví dụ</th><th>Ai làm</th></tr>
+      <tr><td>🏭 Nhà máy</td><td>Bản sao số turbine máy bay, phát hiện hỏng trước khi xảy ra</td><td>GE, Siemens</td></tr>
+      <tr><td>🏙️ Đô thị</td><td>Bản đồ số toàn Singapore, mô phỏng lũ lụt và giao thông</td><td>Virtual Singapore</td></tr>
+      <tr><td>🚗 Ô tô</td><td>Thu thập data từ triệu xe để train AI lái tự động</td><td>Tesla</td></tr>
+      <tr><td>🚦 Giao thông</td><td>Điều khiển đèn thông minh real-time — chính là demo này!</td><td>Bạn đang xem</td></tr>
+    </table></div>
+  </div>
+  <div class="explain green"><strong>Demo này:</strong> Mô phỏng Ngã Tư Hoàn Kiếm – Đinh Tiên Hoàng, Hà Nội. Cảm biến giả lập → Digital Twin → AI tối ưu → ra lệnh đổi đèn.</div>
+</div></div>
+
+<!-- SLIDE 2 -->
+<div class="slide" data-idx="1"><div class="slide-inner">
+  <div class="slide-badge" style="background:rgba(34,211,238,.1);color:var(--cyan);border:1px solid rgba(34,211,238,.2);">02 · Kiến Trúc</div>
+  <div class="slide-title">5 Lớp của Digital Twin</div>
+  <div class="slide-desc">Thanh màu nằm ngang trên cùng dashboard — dữ liệu chảy qua 5 lớp từ trái sang phải, rồi phản hồi ngược lại.</div>
+  <div class="card">
+    <div class="flow">
+      <div class="flow-box" style="border-color:rgba(248,113,113,.3);"><b style="color:var(--red);">① Physical</b><small>Camera, Cảm biến</small></div>
+      <div class="flow-arr">→</div>
+      <div class="flow-box" style="border-color:rgba(249,115,22,.3);"><b style="color:var(--orange);">② Ingestion</b><small>MQTT, REST API</small></div>
+      <div class="flow-arr">→</div>
+      <div class="flow-box" style="border-color:rgba(251,191,36,.3);"><b style="color:var(--yellow);">③ Twin Engine</b><small>State x(t), DB</small></div>
+      <div class="flow-arr">→</div>
+      <div class="flow-box" style="border-color:rgba(52,211,153,.3);"><b style="color:var(--green);">④ AI Engine</b><small>What-If, Tối ưu</small></div>
+      <div class="flow-arr">→</div>
+      <div class="flow-box" style="border-color:rgba(96,165,250,.3);"><b style="color:var(--blue);">⑤ Visualization</b><small>Dashboard này</small></div>
+      <div class="flow-arr" style="color:var(--green);">←</div>
+      <div class="flow-box" style="border-color:rgba(52,211,153,.3);"><b style="color:var(--green);">Feedback</b><small>Lệnh về đèn thật</small></div>
+    </div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>Lớp</th><th>Tên</th><th>Làm gì trong thực tế</th></tr>
+    <tr><td><span class="b b-r">①</span></td><td>Physical World</td><td>Camera NVIDIA Jetson đếm xe mỗi 500ms, cảm biến từ tính dưới mặt đường (loop detector)</td></tr>
+    <tr><td><span class="b b-o">②</span></td><td>Data Ingestion</td><td>Gửi dữ liệu về server qua MQTT mỗi 1 giây, QoS đảm bảo không mất gói</td></tr>
+    <tr><td><span class="b b-y">③</span></td><td>Twin Engine</td><td>Server lưu vào InfluxDB, cập nhật "bộ nhớ" hệ thống (State Vector x(t))</td></tr>
+    <tr><td><span class="b b-g">④</span></td><td>AI Engine</td><td>Chạy 7 kịch bản đèn, tính điểm J, chọn tốt nhất mỗi 3 giây</td></tr>
+    <tr><td><span class="b b-b">⑤</span></td><td>Visualization</td><td>Dashboard hiển thị + gửi lệnh về đèn thật khi bấm "Áp Dụng Đề Xuất"</td></tr>
+  </table></div>
+</div></div>
+
+<!-- SLIDE 3 -->
+<div class="slide" data-idx="2"><div class="slide-inner">
+  <div class="slide-badge" style="background:rgba(96,165,250,.1);color:var(--blue);border:1px solid rgba(96,165,250,.2);">03 · Bản Đồ</div>
+  <div class="slide-title">Bản Đồ 2D Ngã Tư — Real-time</div>
+  <div class="slide-desc">Canvas lớn cột trái — vẽ lại liên tục bằng requestAnimationFrame. Xe ô tô animated, đèn đổi màu theo chu kỳ thật.</div>
+  <div class="explain"><strong>Bạn đang thấy gì?</strong> Ngã tư nhìn từ trên xuống. 6 nhánh đường tỏa ra. Màu mỗi nhánh = mật độ xe thực tế. Hình chữ nhật nhỏ di chuyển = xe được vẽ bằng Canvas 2D API, tốc độ giảm khi đường đông.</div>
+  <div class="card"><div class="card-lbl">6 nhánh đường — ký hiệu và hướng</div>
+    <div class="tbl"><table>
+      <tr><th>Ký hiệu</th><th>Hướng thực</th><th>Mật độ từ biến nào</th></tr>
+      <tr><td><code>NS ↑</code></td><td>Xe từ phía Bắc vào ngã tư</td><td><code>S.NS</code></td></tr>
+      <tr><td><code>NS ↓</code></td><td>Xe từ ngã tư ra phía Nam</td><td><code>S.NS</code></td></tr>
+      <tr><td><code>EW ←</code></td><td>Xe từ phía Đông vào</td><td><code>S.EW</code></td></tr>
+      <tr><td><code>EW →</code></td><td>Xe ra phía Tây</td><td><code>S.EW</code></td></tr>
+      <tr><td><code>NE ↗</code></td><td>Đường chéo Đông Bắc</td><td><code>S.NE</code></td></tr>
+      <tr><td><code>SW ↙</code></td><td>Đường chéo Tây Nam</td><td><code>S.SW</code></td></tr>
+    </table></div>
+  </div>
+  <div class="card"><div class="card-lbl">Code: tốc độ xe tỉ lệ nghịch với mật độ</div>
+    <div class="code-wrap"><div class="code-hdr"><div class="dots"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div>class Vehicle — update(density)</div>
+    <pre><span class="fn">update</span>(density) {
+  <span class="cm">// density=0.1 → speedFactor=0.92 (gần tốc độ tối đa)</span>
+  <span class="cm">// density=0.9 → speedFactor=0.1  (bò như rùa)</span>
+  <span class="kw">const</span> speedFactor = Math.<span class="fn">max</span>(<span class="num">0.1</span>, <span class="num">1</span> - density * <span class="num">0.8</span>);
+  <span class="kw">this</span>.t += <span class="kw">this</span>.speed * speedFactor;
+  <span class="kw">if</span> (<span class="kw">this</span>.t >= <span class="num">1</span>) <span class="kw">this</span>.done = <span class="kw">true</span>; <span class="cm">// xe ra khỏi màn hình</span>
+}</pre></div>
+  </div>
+  <div class="explain green"><strong>Thử ngay:</strong> Kéo slider "Giờ mô phỏng" về 17–19h → xe chạy chậm, màu đỏ. Kéo về 3h sáng → xe chạy nhanh, màu xanh.</div>
+</div></div>
+
+<!-- SLIDE 4 -->
+<div class="slide" data-idx="3"><div class="slide-inner">
+  <div class="slide-badge" style="background:rgba(52,211,153,.1);color:var(--green);border:1px solid rgba(52,211,153,.2);">04 · Màu Sắc</div>
+  <div class="slide-title">Mã Màu Mật Độ Xe</div>
+  <div class="slide-desc">Màu nhánh đường trên canvas và thanh density bars đều dùng cùng bảng màu 6 cấp độ này.</div>
+  <div class="explain"><strong>Mật độ</strong> là số từ <code style="background:rgba(96,165,250,.1);color:var(--cyan);padding:1px 5px;border-radius:3px;">0.0</code> (trống hoàn toàn) đến <code style="background:rgba(96,165,250,.1);color:var(--cyan);padding:1px 5px;border-radius:3px;">1.0</code> (tắc hoàn toàn). Hệ thống tự tô màu theo ngưỡng đã định.</div>
+  <div class="color-grid">
+    <div class="cc" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);"><b style="color:#22c55e;">🟢 Xanh lá</b><small>0% – 28%</small><p>Thông thoáng, không cần can thiệp</p></div>
+    <div class="cc" style="background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.25);"><b style="color:#eab308;">🟡 Vàng</b><small>28% – 48%</small><p>Bình thường, AI theo dõi</p></div>
+    <div class="cc" style="background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.25);"><b style="color:#f97316;">🟠 Cam</b><small>48% – 68%</small><p>Hơi đông, AI bắt đầu tính</p></div>
+    <div class="cc" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);"><b style="color:#ef4444;">🔴 Đỏ</b><small>68% – 82%</small><p>Đông đúc, can thiệp ngay</p></div>
+    <div class="cc" style="background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.25);"><b style="color:#a855f7;">🟣 Tím</b><small>82% – 93%</small><p>Rất đông, ưu tiên tối đa</p></div>
+    <div class="cc" style="background:rgba(146,64,14,.2);border:1px solid rgba(146,64,14,.4);"><b style="color:#d97706;">🟤 Nâu</b><small>93% – 100%</small><p>Tắc hoàn toàn — báo động</p></div>
+  </div>
+  <div class="card"><div class="card-lbl">Ví dụ density bars — giờ cao điểm chiều 17h</div>
+    <div class="dens-row"><div class="dens-lbl">NS</div><div class="dens-bg"><div class="dens-fill" style="width:72%;background:#ef4444;"></div></div><div class="dens-pct" style="color:#ef4444;">72%</div><span style="font-size:13px;margin-left:6px;">🔴 AI can thiệp ngay</span></div>
+    <div class="dens-row"><div class="dens-lbl">EW</div><div class="dens-bg"><div class="dens-fill" style="width:31%;background:#eab308;"></div></div><div class="dens-pct" style="color:#eab308;">31%</div><span style="font-size:13px;margin-left:6px;">🟡 Bình thường</span></div>
+    <div class="dens-row"><div class="dens-lbl">NE</div><div class="dens-bg"><div class="dens-fill" style="width:38%;background:#f97316;"></div></div><div class="dens-pct" style="color:#f97316;">38%</div><span style="font-size:13px;margin-left:6px;">🟠 Hơi đông</span></div>
+    <div class="dens-row"><div class="dens-lbl">SW</div><div class="dens-bg"><div class="dens-fill" style="width:15%;background:#22c55e;"></div></div><div class="dens-pct" style="color:#22c55e;">15%</div><span style="font-size:13px;margin-left:6px;">🟢 Thông thoáng</span></div>
+  </div>
+</div></div>
+
+<!-- SLIDE 5 -->
+<div class="slide" data-idx="4"><div class="slide-inner">
+  <div class="slide-badge" style="background:rgba(251,191,36,.1);color:var(--yellow);border:1px solid rgba(251,191,36,.2);">05 · Đèn Tín Hiệu</div>
+  <div class="slide-title">Trạng Thái Đèn Tín Hiệu</div>
+  <div class="slide-desc">Panel góc trên phải — đồng hồ đếm ngược thật. Mỗi giây giảm 1, đổi pha theo thứ tự xanh → vàng → đỏ.</div>
+  <div class="card"><div class="card-lbl">Demo — NS đang xanh còn 32 giây</div>
+    <div class="sig-grid">
+      <div class="sig-box"><div class="sig-dir">↕ Bắc–Nam (NS)</div><div class="sig-num" style="color:#22c55e;">32</div><div class="sig-ph" style="color:#22c55e;">🟢 XANH</div><div class="sig-bar"><div class="sig-fill" style="width:58%;background:#22c55e;"></div></div></div>
+      <div class="sig-box"><div class="sig-dir">↔ Đông–Tây (EW)</div><div class="sig-num" style="color:#ef4444;">67</div><div class="sig-ph" style="color:#ef4444;">🔴 ĐỎ</div><div class="sig-bar"><div class="sig-fill" style="width:74%;background:#ef4444;"></div></div></div>
+    </div>
+  </div>
+  <div class="explain yellow"><strong>Chu kỳ 90 giây:</strong> NS và EW không bao giờ cùng xanh. Có pha vàng 4s trước khi đổi hướng — giống đèn thật ngoài đường.</div>
+  <div class="tbl"><table>
+    <tr><th>Giây trong chu kỳ</th><th>Pha</th><th>NS</th><th>EW</th></tr>
+    <tr><td><code>0 → 51s</code></td><td>NS_GREEN</td><td>🟢 Xanh (51s)</td><td>🔴 Đỏ</td></tr>
+    <tr><td><code>51 → 55s</code></td><td>NS_YELLOW</td><td>🟡 Vàng (4s)</td><td>🔴 Đỏ</td></tr>
+    <tr><td><code>55 → 86s</code></td><td>EW_GREEN</td><td>🔴 Đỏ</td><td>🟢 Xanh (31s)</td></tr>
+    <tr><td><code>86 → 90s</code></td><td>EW_YELLOW</td><td>🔴 Đỏ</td><td>🟡 Vàng (4s)</td></tr>
+  </table></div>
+  <div class="explain"><strong>Tại sao NS=55s, EW=35s?</strong> Vì AI phát hiện NS đông hơn EW, phân bổ thêm xanh cho NS. Bấm "Áp Dụng Đề Xuất" thì con số này thay đổi ngay lập tức.</div>
+</div></div>
+
+<!-- SLIDE 6 -->
+<div class="slide" data-idx="5"><div class="slide-inner">
+  <div class="slide-badge" style="background:rgba(167,139,250,.1);color:var(--purple);border:1px solid rgba(167,139,250,.2);">06 · State Vector</div>
+  <div class="slide-title">State Vector x(t) — "Bộ Nhớ" Digital Twin</div>
+  <div class="slide-desc">Tab "State Vector" trong panel mật độ — toàn bộ trạng thái hệ thống dưới dạng JSON có cấu trúc.</div>
+  <div class="explain purple"><strong>x(t) là gì?</strong> Snapshot đầy đủ tại thời điểm t: mật độ từng hướng, thời gian đèn, pha hiện tại, sự cố... Từ x(t) AI có thể tính x(t+1) — dự đoán tương lai và chọn hành động tốt nhất.</div>
+  <div class="card"><div class="card-lbl">Ví dụ State Vector lúc 17:30 cao điểm chiều</div>
+    <div class="code-wrap"><div class="code-hdr"><div class="dots"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div>x(t) — snapshot tại t=17:30:45</div>
+    <pre>x(t) = {
+  <span class="prop">NS_density</span>: <span class="num">0.5820</span>  <span class="cm">// 58% — Cam 🟠</span>
+  <span class="prop">EW_density</span>: <span class="num">0.3100</span>  <span class="cm">// 31% — Vàng 🟡</span>
+  <span class="prop">NE_density</span>: <span class="num">0.3800</span>  <span class="cm">// 38% — Vàng 🟡</span>
+  <span class="prop">SW_density</span>: <span class="num">0.2700</span>  <span class="cm">// 27% — Xanh 🟢</span>
+
+  <span class="prop">NS_wait_sec</span>: <span class="num">32</span><span class="str">s</span>   <span class="cm">// thời gian xe đã chờ TB</span>
+  <span class="prop">EW_wait_sec</span>: <span class="num">17</span><span class="str">s</span>
+
+  <span class="prop">signal</span>: {
+    <span class="prop">NS_green</span>: <span class="num">55</span><span class="str">s</span>  <span class="prop">EW_green</span>: <span class="num">35</span><span class="str">s</span>
+    <span class="prop">phase</span>: <span class="str">"NS_GREEN"</span>  <span class="prop">tick</span>: <span class="num">23</span>/<span class="num">90</span>
+  }
+  <span class="prop">incident</span>: <span class="kw">null</span>  <span class="prop">sim_hour</span>: <span class="num">17</span>
+}</pre></div>
+  </div>
+  <div class="explain"><strong>AI đọc x(t) → thử 7 kịch bản → tính x(t+1) cho từng cái → chọn x(t+1) tốt nhất → áp dụng → quan sát x(t+2).</strong></div>
+</div></div>
+
+<!-- SLIDE 7 -->
+<div class="slide" data-idx="6"><div class="slide-inner">
+  <div class="slide-badge" style="background:rgba(52,211,153,.1);color:var(--green);border:1px solid rgba(52,211,153,.2);">07 · AI Engine</div>
+  <div class="slide-title">AI What-If Analysis — Layer 4</div>
+  <div class="slide-desc">Panel "Kịch Bản Tối Ưu" — AI thử 7 cách phân bổ thời gian đèn, tính điểm J, chọn J thấp nhất mỗi 3 giây.</div>
+  <div class="explain"><strong>What-If là gì?</strong> AI tự hỏi "Nếu NS=60s thì mật độ sau 1 chu kỳ sẽ thế nào? Nếu NS=30s thì sao?" — thử 7 kịch bản, chọn tốt nhất.</div>
+  <div class="card"><div class="card-lbl">Hàm mục tiêu J — càng nhỏ càng tốt</div>
+    <div class="code-wrap"><div class="code-hdr"><div class="dots"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div>scoreState() — tính điểm J</div>
+    <pre><span class="cm">// J = tổng bình phương mật độ — bình phương vì</span>
+<span class="cm">// 80% tệ hơn nhiều lần so với 2x(40%)</span>
+<span class="kw">function</span> <span class="fn">scoreState</span>(st) {
+  <span class="kw">return</span> Object.<span class="fn">values</span>(st).<span class="fn">reduce</span>((a, v) => a + v*v, <span class="num">0</span>);
+}
+<span class="cm">// NS=0.58, EW=0.31, NE=0.38, SW=0.27</span>
+<span class="cm">// J = 0.336+0.096+0.144+0.073 = 0.649</span></pre></div>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>Kịch bản</th><th>NS xanh</th><th>EW xanh</th><th>J</th><th>Nhận xét</th></tr>
+    <tr><td><span class="b b-g">✅ TỐT NHẤT</span></td><td>55s</td><td>35s</td><td style="font-family:var(--mono);color:var(--green);">0.085</td><td>NS đông hơn → cho xanh lâu hơn</td></tr>
+    <tr><td>#2</td><td>45s</td><td>45s</td><td style="font-family:var(--mono);">0.097</td><td>Công bằng nhưng chưa tối ưu</td></tr>
+    <tr><td>#3</td><td>60s</td><td>30s</td><td style="font-family:var(--mono);">0.112</td><td>NS quá nhiều, EW bị dồn</td></tr>
+    <tr><td>#4</td><td>70s</td><td>20s</td><td style="font-family:var(--mono);">0.158</td><td>Mất cân bằng nghiêm trọng</td></tr>
+  </table></div>
+  <div class="explain green"><strong>Ngoài đời thực:</strong> Hệ thống SCOOT (Anh) chạy what-if mỗi 5 giây tại 250+ thành phố. Giảm 12% thời gian chờ trung bình.</div>
+</div></div>
+
+<!-- SLIDE 8 -->
+<div class="slide" data-idx="7"><div class="slide-inner">
+  <div class="slide-badge" style="background:rgba(52,211,153,.1);color:var(--green);border:1px solid rgba(52,211,153,.2);">08 · REST API</div>
+  <div class="slide-title">REST API Activity</div>
+  <div class="slide-desc">Panel cột phải — trong demo là giả lập (không gọi server thật). Đây là cách frontend nói chuyện với backend.</div>
+  <div class="explain"><strong>REST API là gì?</strong> Giao tiếp qua HTTP. <code style="background:rgba(96,165,250,.1);color:var(--cyan);padding:1px 5px;border-radius:3px;">GET</code> lấy dữ liệu, <code style="background:rgba(96,165,250,.1);color:var(--cyan);padding:1px 5px;border-radius:3px;">POST</code> gửi mới, <code style="background:rgba(96,165,250,.1);color:var(--cyan);padding:1px 5px;border-radius:3px;">PUT</code> cập nhật/ra lệnh. Số 200/201/204 là HTTP status code (thành công).</div>
+  <div class="card"><div class="card-lbl">Giải thích từng dòng log API</div>
+    <div class="api"><span class="m-get">GET</span><span class="api-path">/api/v1/intersection/hk01/state</span><span class="s200">200</span><span class="api-ms">23ms</span></div>
+    <div style="font-size:11px;color:var(--muted);padding:2px 0 8px 46px;">→ Đọc trạng thái mật độ hiện tại của ngã tư hk01</div>
+    <div class="api"><span class="m-post">POST</span><span class="api-path">/api/v1/sensor/batch</span><span class="s201">201</span><span class="api-ms">38ms</span></div>
+    <div style="font-size:11px;color:var(--muted);padding:2px 0 8px 46px;">→ Camera gửi batch dữ liệu 4 hướng lên server, tạo mới thành công</div>
+    <div class="api"><span class="m-get">GET</span><span class="api-path">/api/v1/ai/scenarios?n=7</span><span class="s200">200</span><span class="api-ms">46ms</span></div>
+    <div style="font-size:11px;color:var(--muted);padding:2px 0 8px 46px;">→ Lấy kết quả 7 kịch bản AI vừa tính xong</div>
+    <div class="api"><span class="m-put">PUT</span><span class="api-path">/api/v1/signal/hk01/command</span><span class="s204">204</span><span class="api-ms">12ms</span></div>
+    <div style="font-size:11px;color:var(--muted);padding:2px 0 8px 46px;">→ Gửi lệnh đổi đèn — 204 = OK không trả dữ liệu về</div>
+  </div>
+  <div class="card"><div class="card-lbl">Code thật — Node.js Express backend</div>
+    <div class="code-wrap"><div class="code-hdr"><div class="dots"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div>server.js</div>
+    <pre>app.<span class="fn">put</span>(<span class="str">'/api/v1/signal/:id/command'</span>, <span class="kw">async</span> (req, res) => {
+  <span class="kw">const</span> { ns_green, ew_green } = req.body;
+  <span class="cm">// Gửi lệnh qua MQTT đến bộ điều khiển đèn thật</span>
+  mqtt.<span class="fn">publish</span>(<span class="str">`traffic/hn/hk01/signal/command`</span>,
+    JSON.<span class="fn">stringify</span>({ ns_green, ew_green, src: <span class="str">'AI'</span> })
+  );
+  res.<span class="fn">status</span>(<span class="num">204</span>).<span class="fn">send</span>(); <span class="cm">// OK, không trả dữ liệu</span>
+});</pre></div>
+  </div>
+</div></div>
+
+<!-- SLIDE 9 -->
+<div class="slide" data-idx="8"><div class="slide-inner">
+  <div class="slide-badge" style="background:rgba(249,115,22,.1);color:var(--orange);border:1px solid rgba(249,115,22,.2);">09 · MQTT</div>
+  <div class="slide-title">MQTT Broker Messages</div>
+  <div class="slide-desc">Panel cột phải — giao thức nhắn tin IoT dùng Publish/Subscribe thay vì Request/Response như HTTP.</div>
+  <div class="explain orange"><strong>MQTT là gì?</strong> Giống loa phát thanh: Camera "phát" (publish) lên "kênh" (topic) → Broker giữ và chuyển tiếp → Ai đang "nghe" (subscribe) nhận ngay. Nhẹ hơn HTTP 10× — lý tưởng cho IoT cảm biến nhỏ, mạng kém.</div>
+  <div class="card"><div class="card-lbl">Giải thích từng dòng MQTT log</div>
+    <div class="mq"><span class="mq-ts">00:13:47</span><span class="mq-pub">PUB</span><span class="mq-top">traffic/hn/hk01/sensor/NS</span><span class="mq-pay">{d:0.58,cnt:142}</span></div>
+    <div style="font-size:11px;color:var(--muted);padding:2px 0 7px 100px;">→ Camera NS phát mật độ 58% (142 xe) lên broker mỗi giây</div>
+    <div class="mq"><span class="mq-ts">00:13:47</span><span class="mq-pub">PUB</span><span class="mq-top">traffic/hn/hk01/sensor/EW</span><span class="mq-pay">{d:0.31,cnt:89}</span></div>
+    <div style="font-size:11px;color:var(--muted);padding:2px 0 7px 100px;">→ Camera EW phát mật độ 31% lên broker</div>
+    <div class="mq"><span class="mq-ts">00:13:46</span><span class="mq-sub">SUB</span><span class="mq-top">traffic/hn/hk01/signal/cmd</span><span class="mq-pay">{ns_g:55,ew_g:35}</span></div>
+    <div style="font-size:11px;color:var(--muted);padding:2px 0 7px 100px;">→ Bộ điều khiển đèn NHẬN lệnh từ AI: NS=55s, EW=35s</div>
+  </div>
+  <div class="card"><div class="card-lbl">Code thật — Python camera publisher</div>
+    <div class="code-wrap"><div class="code-hdr"><div class="dots"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div>camera_publisher.py</div>
+    <pre><span class="kw">import</span> paho.mqtt.client <span class="kw">as</span> mqtt
+client = mqtt.<span class="fn">Client</span>()
+client.<span class="fn">connect</span>(<span class="str">"broker.twin.local"</span>, <span class="num">1883</span>)
+<span class="kw">while</span> <span class="kw">True</span>:
+    density = count_vehicles() / max_capacity
+    client.<span class="fn">publish</span>(<span class="str">"traffic/hn/hk01/sensor/NS"</span>,
+        <span class="str">f'{{"d":{density:.3f}}}'</span>, qos=<span class="num">0</span>)
+    time.<span class="fn">sleep</span>(<span class="num">1</span>)  <span class="cm"># gửi mỗi 1 giây</span></pre></div>
+  </div>
+</div></div>
+
+<!-- SLIDE 10 -->
+<div class="slide" data-idx="9"><div class="slide-inner">
+  <div class="slide-badge" style="background:rgba(167,139,250,.1);color:var(--purple);border:1px solid rgba(167,139,250,.2);">10 · InfluxDB</div>
+  <div class="slide-title">InfluxDB — TimeSeries Database</div>
+  <div class="slide-desc">Panel cột phải — database chuyên lưu dữ liệu theo thời gian. Mỗi chu kỳ ghi ~4 dòng vào DB.</div>
+  <div class="explain purple"><strong>Tại sao không dùng MySQL?</strong> 4 cảm biến × 1 lần/giây × 30 ngày = 10 triệu rows. MySQL sẽ chậm dần. InfluxDB ghi hàng triệu điểm/giây, tự nén data, query theo thời gian trong &lt;100ms.</div>
+  <div class="card"><div class="card-lbl">Giải thích dòng InfluxDB Line Protocol</div>
+    <div style="font-family:var(--mono);font-size:12px;padding:8px 0;color:var(--muted);">Format: <span style="color:var(--yellow);">measurement</span><span style="color:var(--green);">,tags</span> <span style="color:var(--blue);">fields</span> <span style="color:var(--muted);">timestamp</span></div>
+    <div class="db"><span class="db-m">traffic_density</span><span class="db-t">,loc=hk01,dir=NS</span><span class="db-f"> value=0.384</span><span class="db-ts">1782839646</span></div>
+    <div style="font-size:11px;color:var(--muted);padding:2px 0 7px 0;">→ Lưu mật độ NS=38.4% tại ngã tư hk01 vào lúc timestamp đó</div>
+    <div class="db"><span class="db-m">signal_state</span><span class="db-t">,loc=hk01</span><span class="db-f"> ns_g=55,ew_g=35</span><span class="db-ts">1782839645</span></div>
+    <div class="db"><span class="db-m">throughput</span><span class="db-t">,loc=hk01</span><span class="db-f"> veh_hr=139</span><span class="db-ts">1782839644</span></div>
+  </div>
+  <div class="card"><div class="card-lbl">Query Flux — lấy mật độ 1 giờ qua để vẽ chart</div>
+    <div class="code-wrap"><div class="code-hdr"><div class="dots"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28ca41"></span></div>Flux Query Language</div>
+    <pre><span class="fn">from</span>(bucket: <span class="str">"traffic_hn"</span>)
+  |> <span class="fn">range</span>(start: <span class="str">-1h</span>)
+  |> <span class="fn">filter</span>(fn: (r) => r.dir == <span class="str">"NS"</span>)
+  |> <span class="fn">aggregateWindow</span>(every: <span class="str">1m</span>, fn: mean)
+<span class="cm">// Kết quả: [{time:"17:00",value:0.32},{time:"17:01",...}]</span>
+<span class="cm">// Dùng để vẽ biểu đồ lịch sử mật độ 30 chu kỳ</span></pre></div>
+  </div>
+</div></div>
+
+<!-- SLIDE 11 -->
+<div class="slide" data-idx="10"><div class="slide-inner">
+  <div class="slide-badge" style="background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.2);">11 · Sự Cố</div>
+  <div class="slide-title">Giả Lập Sự Cố — Incident Simulation</div>
+  <div class="slide-desc">3 nút ở cột giữa — mỗi loại sự cố tác động khác nhau lên mật độ và AI tự phản ứng tương ứng.</div>
+  <div class="tbl"><table>
+    <tr><th>Nút</th><th>Tác động mật độ</th><th>AI phản ứng thế nào</th><th>MQTT gửi gì</th></tr>
+    <tr><td><span class="b b-r">🚗 Tai Nạn</span></td><td>NS tăng 60% — xe ùn do tai nạn chắn đường</td><td>Tăng xanh EW để phân luồng xe tránh hướng NS</td><td><code>incident/alert {type:"accident"}</code></td></tr>
+    <tr><td><span class="b b-y">🚑 Cấp Cứu</span></td><td>Tất cả giảm — xe tự nhường đường</td><td>Ưu tiên xanh NS tối đa 65s+ cho xe qua</td><td><code>signal/priority {dir:"NS"}</code></td></tr>
+    <tr><td><span class="b b-p">🚨 VIP</span></td><td>NS giảm gần 0 — đường được dọn sạch</td><td>Khóa xanh NS cho đến khi đoàn convoy qua</td><td><code>signal/lock {mode:"VIP_CLEAR"}</code></td></tr>
+  </table></div>
+  <div class="explain orange"><strong>Thực tế Singapore:</strong> Hệ thống iTLACS tích hợp GPS xe cứu thương — khi xe cách ngã tư 500m, đèn tự dọn xanh. Giảm 25% thời gian di chuyển khẩn cấp.</div>
+  <div class="explain"><strong>Thử ngay trong demo:</strong> Bấm "🚑 Cấp Cứu" → xem AI đề xuất NS=65s+ trong panel What-If. Quan sát MQTT panel gửi topic <code style="background:rgba(96,165,250,.1);color:var(--cyan);padding:1px 4px;border-radius:3px;font-size:11px;">incident/alert</code>. Bấm "↺ Reset" để về bình thường.</div>
+</div></div>
+
+<!-- SLIDE 12 -->
+<div class="slide" data-idx="11"><div class="slide-inner">
+  <div class="slide-badge" style="background:rgba(52,211,153,.1);color:var(--green);border:1px solid rgba(52,211,153,.2);">12 · Kết Luận</div>
+  <div class="slide-title">Feedback Loop — Vòng Điều Khiển Khép Kín</div>
+  <div class="slide-desc">Khái niệm trung tâm của hệ thống — không chỉ giám sát mà còn tự động tác động lại thực tế.</div>
+  <div class="explain green"><strong>Điểm mấu chốt:</strong> Giám sát thông thường chỉ đọc. Digital Twin còn <em>ghi ngược lại</em> — AI quyết định → ảnh hưởng thực tế → thực tế đổi → dữ liệu mới → AI tính lại. Vòng lặp khép kín liên tục.</div>
+  <div class="card"><div class="card-lbl">Chu trình 1 vòng lặp — mỗi ~3 giây trong demo</div>
+    <div style="display:flex;flex-direction:column;gap:9px;">
+      <div style="display:flex;gap:12px;align-items:flex-start;"><div style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3);border-radius:8px;padding:8px 12px;min-width:130px;flex-shrink:0;"><div style="font-weight:700;color:var(--red);font-size:12px;">① Camera đọc</div><div style="font-size:11px;color:var(--muted);">NS=58%, 142 xe</div></div><div style="font-size:12px;color:var(--muted);padding-top:8px;flex:1;">→ MQTT PUB: <code style="background:rgba(96,165,250,.08);color:var(--cyan);padding:1px 4px;border-radius:3px;font-size:11px;">sensor/NS {d:0.58}</code></div></div>
+      <div style="display:flex;gap:12px;align-items:flex-start;"><div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:8px 12px;min-width:130px;flex-shrink:0;"><div style="font-weight:700;color:var(--yellow);font-size:12px;">② Twin Engine</div><div style="font-size:11px;color:var(--muted);">Cập nhật x(t)</div></div><div style="font-size:12px;color:var(--muted);padding-top:8px;flex:1;">→ Lưu InfluxDB, x(t)={NS:0.58, EW:0.31...}</div></div>
+      <div style="display:flex;gap:12px;align-items:flex-start;"><div style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);border-radius:8px;padding:8px 12px;min-width:130px;flex-shrink:0;"><div style="font-weight:700;color:var(--green);font-size:12px;">③ AI tính toán</div><div style="font-size:11px;color:var(--muted);">7 kịch bản → J</div></div><div style="font-size:12px;color:var(--muted);padding-top:8px;flex:1;">→ Best: NS=55s/EW=35s, J=0.085 (thấp nhất)</div></div>
+      <div style="display:flex;gap:12px;align-items:flex-start;"><div style="background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.3);border-radius:8px;padding:8px 12px;min-width:130px;flex-shrink:0;"><div style="font-weight:700;color:var(--blue);font-size:12px;">④ Ra lệnh đèn</div><div style="font-size:11px;color:var(--muted);">Feedback → vật lý</div></div><div style="font-size:12px;color:var(--muted);padding-top:8px;flex:1;">→ PUT /api/signal → MQTT → Đèn vật lý đổi timing ngay</div></div>
+      <div style="text-align:center;font-size:12px;color:var(--green);font-weight:700;padding:8px 0;border-top:1px solid rgba(52,211,153,.2);">↺ Lặp lại từ ① — đèn NS=55s ảnh hưởng đến mật độ chu kỳ tiếp theo</div>
+    </div>
+  </div>
+  <div class="explain green"><strong>Tổng kết:</strong> Đây là closed-loop control system — cùng nguyên lý với Tesla Autopilot và điều hòa thông minh. Digital Twin áp dụng nguyên lý đó cho hạ tầng đô thị. Khi bạn bấm "Áp Dụng Đề Xuất" trong demo, đó chính là khoảnh khắc Feedback Loop đóng lại!</div>
+</div></div>
+
+</div><!-- /slides-wrap -->
+
+<div class="navbar">
+  <button class="nav-btn" id="btnPrev" onclick="navigate(-1)" disabled>← Trước</button>
+  <div class="dots-nav" id="dotsNav"></div>
+  <button class="nav-btn primary" id="btnNext" onclick="navigate(1)">Tiếp theo →</button>
+</div>
+
+<script>
+const META=[
+  {title:'Digital Twin là gì?',sub:'Tổng quan'},
+  {title:'Kiến trúc 5 lớp',sub:'Luồng dữ liệu'},
+  {title:'Bản đồ 2D ngã tư',sub:'Canvas + xe animated'},
+  {title:'Mã màu mật độ',sub:'6 cấp độ tắc đường'},
+  {title:'Đèn tín hiệu',sub:'Chu kỳ 90s, 3 pha'},
+  {title:'State Vector x(t)',sub:'Bộ nhớ hệ thống'},
+  {title:'AI What-If Analysis',sub:'7 kịch bản tối ưu'},
+  {title:'REST API',sub:'HTTP endpoints'},
+  {title:'MQTT Broker',sub:'Pub/Sub IoT messaging'},
+  {title:'InfluxDB',sub:'TimeSeries Database'},
+  {title:'Giả lập sự cố',sub:'Tai nạn, Cấp cứu, VIP'},
+  {title:'Feedback Loop',sub:'Vòng điều khiển khép kín'},
+];
+const COLORS=['var(--cyan)','var(--cyan)','var(--blue)','var(--green)','var(--yellow)','var(--purple)','var(--green)','var(--green)','var(--orange)','var(--purple)','var(--red)','var(--green)'];
+let cur=0;
+const total=META.length;
+const slides=document.querySelectorAll('.slide');
+document.getElementById('totNum').textContent=total;
+
+const dn=document.getElementById('dotsNav');
+slides.forEach((_,i)=>{const d=document.createElement('div');d.className='dot-nav'+(i===0?' active':'');d.onclick=()=>goTo(i);dn.appendChild(d);});
+
+const tg=document.getElementById('tocGrid');
+META.forEach((m,i)=>{
+  const el=document.createElement('div');
+  el.className='toc-item'+(i===0?' active':'');
+  el.innerHTML=`<div class="toc-num" style="background:rgba(96,165,250,.1);color:${COLORS[i]};">${String(i+1).padStart(2,'0')}</div><div><div class="toc-name">${m.title}</div><div class="toc-sub">${m.sub}</div></div>`;
+  el.onclick=()=>{goTo(i);toggleTOC();};
+  tg.appendChild(el);
+});
+
+function goTo(idx){
+  if(idx<0||idx>=total)return;
+  slides[cur].classList.remove('active');
+  slides[cur].classList.add('exit-left');
+  setTimeout(()=>{if(slides[idx])slides[idx].classList.remove('exit-left');},400);
+  cur=idx;
+  slides[cur].classList.add('active');
+  slides[cur].scrollTop=0;
+  document.querySelectorAll('.dot-nav').forEach((d,i)=>d.classList.toggle('active',i===cur));
+  document.querySelectorAll('.toc-item').forEach((t,i)=>t.classList.toggle('active',i===cur));
+  document.getElementById('curNum').textContent=cur+1;
+  document.getElementById('progressBar').style.width=((cur+1)/total*100)+'%';
+  document.getElementById('btnPrev').disabled=cur===0;
+  const btn=document.getElementById('btnNext');
+  if(cur===total-1){btn.textContent='🔄 Xem lại từ đầu';btn.onclick=()=>goTo(0);}
+  else{btn.textContent='Tiếp theo →';btn.onclick=()=>navigate(1);}
+}
+function navigate(d){goTo(cur+d);}
+function toggleTOC(){document.getElementById('tocOverlay').classList.toggle('open');}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();navigate(1);}
+  if(e.key==='ArrowLeft'){e.preventDefault();navigate(-1);}
+  if(e.key==='Escape')document.getElementById('tocOverlay').classList.remove('open');
+});
+document.getElementById('progressBar').style.width=(1/total*100)+'%';
+</script>
+</body>
+</html>

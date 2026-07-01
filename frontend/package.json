@@ -1,0 +1,18 @@
+{
+  "name": "digital-twin-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Frontend (Vite + Vanilla JS + Canvas) cho Digital Twin Traffic — nối backend qua Socket.IO + REST",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.7.5"
+  },
+  "devDependencies": {
+    "vite": "^5.4.8"
+  }
+}

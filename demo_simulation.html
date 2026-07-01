@@ -1,0 +1,1533 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🚦 Digital Twin — Nút Giao Thông Thông Minh</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  --bg:        #080c14;
+  --bg-card:   #0f1623;
+  --bg-card2:  #151f30;
+  --border:    rgba(99,179,237,0.12);
+  --border2:   rgba(255,255,255,0.06);
+  --blue:      #60a5fa;
+  --cyan:      #22d3ee;
+  --green:     #34d399;
+  --yellow:    #fbbf24;
+  --orange:    #f97316;
+  --red:       #ef4444;
+  --purple:    #a78bfa;
+  --muted:     #64748b;
+  --text:      #e2e8f0;
+  --text2:     #94a3b8;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px;}
+
+/* ── HEADER ── */
+header{
+  background:linear-gradient(135deg,#0a1020 0%,#101828 100%);
+  border-bottom:1px solid var(--border);
+  padding:12px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:200;
+  backdrop-filter:blur(16px);
+}
+.h-left{display:flex;align-items:center;gap:14px;}
+.live-dot{width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 12px #22c55e;animation:pulse 1.4s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(0.85);}}
+.h-title{font-size:1rem;font-weight:700;}
+.h-sub{font-size:0.7rem;color:var(--text2);margin-top:1px;}
+.h-right{display:flex;align-items:center;gap:20px;}
+.clock{font-family:'JetBrains Mono';font-size:1.15rem;color:var(--cyan);font-weight:600;}
+.sys-badges{display:flex;gap:8px;}
+.sys-badge{font-size:0.65rem;padding:3px 9px;border-radius:20px;font-weight:600;border:1px solid;}
+.sys-badge.online{background:rgba(52,211,153,0.1);color:#34d399;border-color:rgba(52,211,153,0.25);}
+.sys-badge.warn{background:rgba(251,191,36,0.1);color:#fbbf24;border-color:rgba(251,191,36,0.25);}
+
+/* ── ARCH FLOW BAR ── */
+.arch-bar{
+  background:linear-gradient(135deg,rgba(96,165,250,0.04),rgba(34,211,238,0.04));
+  border-bottom:1px solid var(--border);
+  padding:10px 24px;
+  display:flex;align-items:center;gap:0;overflow-x:auto;
+}
+.arch-step{
+  display:flex;align-items:center;gap:8px;
+  padding:6px 14px;border-radius:8px;
+  font-size:0.7rem;font-weight:600;
+  white-space:nowrap;cursor:default;
+  transition:background .2s;
+}
+.arch-step:hover{background:rgba(255,255,255,0.05);}
+.arch-num{
+  width:20px;height:20px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:0.65rem;font-weight:700;
+}
+.arch-arrow{color:var(--muted);font-size:0.9rem;padding:0 2px;}
+.arch-step.l1 .arch-num{background:rgba(239,68,68,0.2);color:#f87171;}
+.arch-step.l2 .arch-num{background:rgba(249,115,22,0.2);color:#fb923c;}
+.arch-step.l3 .arch-num{background:rgba(234,179,8,0.2);color:#facc15;}
+.arch-step.l4 .arch-num{background:rgba(52,211,153,0.2);color:#34d399;}
+.arch-step.l5 .arch-num{background:rgba(96,165,250,0.2);color:#60a5fa;}
+.arch-step.l1{color:#fca5a5;}
+.arch-step.l2{color:#fdba74;}
+.arch-step.l3{color:#fde047;}
+.arch-step.l4{color:#6ee7b7;}
+.arch-step.l5{color:#93c5fd;}
+.arch-pulse{
+  display:inline-block;width:6px;height:6px;border-radius:50%;
+  margin-left:6px;animation:pulse 1s infinite;
+}
+
+/* ── MAIN LAYOUT ── */
+.main{
+  display:grid;
+  grid-template-columns:1fr 340px 340px;
+  gap:14px;
+  padding:16px 20px;
+  max-width:1560px;
+  margin:0 auto;
+}
+
+/* ── CARD ── */
+.card{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:16px;
+  position:relative;
+  overflow:hidden;
+}
+.card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(96,165,250,0.35),transparent);
+}
+.card-title{
+  font-size:0.7rem;font-weight:600;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--text2);
+  margin-bottom:12px;display:flex;align-items:center;gap:7px;
+}
+.card-title .dot{width:6px;height:6px;border-radius:50%;}
+
+/* ── CANVAS ── */
+#cvMain{width:100%;display:block;border-radius:10px;}
+#cvChart{width:100%;display:block;border-radius:8px;margin-top:12px;}
+
+/* ── KPI ROW ── */
+.kpi-row{
+  display:grid;grid-template-columns:repeat(6,1fr);
+  gap:10px;padding:14px 20px;
+  max-width:1560px;margin:0 auto;
+}
+.kpi{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:12px;padding:14px 16px;text-align:center;
+  position:relative;overflow:hidden;
+}
+.kpi::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(96,165,250,0.3),transparent);
+}
+.kpi-val{font-family:'JetBrains Mono';font-size:1.4rem;font-weight:700;line-height:1;}
+.kpi-lbl{font-size:0.62rem;color:var(--text2);margin-top:5px;}
+.kpi-delta{font-size:0.65rem;margin-top:3px;font-weight:600;}
+
+/* ── SIGNAL DISPLAY ── */
+.sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.sig-box{
+  background:rgba(255,255,255,0.03);border:1px solid var(--border2);
+  border-radius:10px;padding:12px;text-align:center;
+}
+.sig-dir{font-size:0.65rem;color:var(--text2);margin-bottom:6px;}
+.sig-countdown{
+  font-family:'JetBrains Mono';font-size:2rem;font-weight:700;line-height:1;
+  transition:color .5s;
+}
+.sig-phase{font-size:0.62rem;margin-top:4px;font-weight:600;}
+.sig-bar-bg{height:4px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:8px;}
+.sig-bar-fill{height:4px;border-radius:2px;transition:width .9s linear;}
+
+/* ── DENSITY BARS ── */
+.dens-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.dens-lbl{font-family:'JetBrains Mono';font-size:0.75rem;width:26px;color:var(--text2);font-weight:600;}
+.dens-bg{flex:1;height:20px;background:rgba(255,255,255,0.04);border-radius:5px;overflow:hidden;position:relative;}
+.dens-fill{height:100%;border-radius:5px;transition:width .7s ease,background .7s ease;position:relative;}
+.dens-fill::after{content:'';position:absolute;top:0;left:0;right:0;height:50%;background:rgba(255,255,255,0.12);border-radius:5px 5px 0 0;}
+.dens-pct{font-family:'JetBrains Mono';font-size:0.72rem;width:36px;text-align:right;font-weight:600;}
+.dens-ico{font-size:0.72rem;width:20px;text-align:center;}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:4px;margin-bottom:12px;}
+.tab-btn{
+  padding:5px 12px;border-radius:5px;border:none;
+  font-size:0.7rem;font-weight:600;cursor:pointer;
+  background:rgba(255,255,255,0.04);color:var(--text2);
+  transition:all .2s;
+}
+.tab-btn.active{background:rgba(96,165,250,0.12);color:var(--blue);border:1px solid rgba(96,165,250,0.25);}
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+
+/* ── AI PANEL ── */
+.ai-wrap{
+  background:linear-gradient(135deg,rgba(52,211,153,0.06),rgba(52,211,153,0.02));
+  border:1px solid rgba(52,211,153,0.2);
+  border-radius:10px;padding:12px;
+}
+.ai-header{font-size:0.68rem;color:#34d399;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.sc-row{
+  display:flex;align-items:center;gap:7px;
+  padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);
+  font-size:0.75rem;
+}
+.sc-row:last-child{border-bottom:none;}
+.sc-badge{font-family:'JetBrains Mono';font-size:0.65rem;padding:2px 7px;border-radius:4px;font-weight:700;background:rgba(255,255,255,0.06);white-space:nowrap;}
+.sc-badge.best{background:rgba(52,211,153,0.15);color:#34d399;}
+.sc-score{margin-left:auto;font-family:'JetBrains Mono';font-size:0.7rem;color:var(--text2);}
+.sc-score.best{color:#34d399;}
+.apply-btn{
+  width:100%;margin-top:10px;padding:9px;
+  background:linear-gradient(135deg,#059669,#047857);
+  border:none;border-radius:8px;color:#fff;font-weight:700;font-size:0.8rem;
+  cursor:pointer;transition:all .2s;letter-spacing:.03em;
+}
+.apply-btn:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(5,150,105,0.35);}
+.apply-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+
+/* ── INCIDENT BTNS ── */
+.incident-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+.inc-btn{
+  flex:1;min-width:80px;padding:7px 4px;border:none;border-radius:7px;
+  font-size:0.7rem;font-weight:700;cursor:pointer;transition:all .2s;
+  letter-spacing:.02em;
+}
+.inc-btn.accident{background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.25);}
+.inc-btn.accident:hover{background:rgba(239,68,68,0.25);}
+.inc-btn.emergency{background:rgba(251,191,36,0.15);color:#fbbf24;border:1px solid rgba(251,191,36,0.25);}
+.inc-btn.emergency:hover{background:rgba(251,191,36,0.25);}
+.inc-btn.vip{background:rgba(167,139,250,0.15);color:#a78bfa;border:1px solid rgba(167,139,250,0.25);}
+.inc-btn.vip:hover{background:rgba(167,139,250,0.25);}
+.inc-btn.reset{background:rgba(96,165,250,0.1);color:#60a5fa;border:1px solid rgba(96,165,250,0.2);}
+.inc-btn.reset:hover{background:rgba(96,165,250,0.2);}
+.incident-badge{
+  display:none;padding:6px 12px;border-radius:8px;font-size:0.72rem;font-weight:700;
+  margin-bottom:8px;animation:fadeIn .4s ease;
+}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+
+/* ── SPEED SLIDERS ── */
+.ctrl-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.ctrl-row label{font-size:0.75rem;color:var(--text2);flex:1;white-space:nowrap;}
+.ctrl-row input[type=range]{flex:2;accent-color:var(--cyan);}
+.ctrl-val{font-family:'JetBrains Mono';font-size:0.75rem;color:var(--cyan);width:34px;text-align:right;}
+
+/* ── BACKEND LOGS ── */
+.log-panel{
+  background:rgba(0,0,0,0.35);border-radius:8px;
+  height:160px;overflow-y:auto;padding:8px;
+  font-family:'JetBrains Mono';font-size:0.67rem;
+  border:1px solid var(--border2);
+}
+.log-entry{
+  display:flex;gap:6px;padding:2px 0;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+  animation:fadeIn .3s ease;line-height:1.5;
+}
+.log-entry:last-child{border-bottom:none;}
+.log-ts{color:var(--muted);white-space:nowrap;}
+.log-method{font-weight:700;min-width:32px;}
+.log-get{color:#34d399;}
+.log-post{color:#60a5fa;}
+.log-put{color:#fbbf24;}
+.log-status{padding:0 4px;border-radius:3px;font-weight:700;}
+.s200{background:rgba(52,211,153,0.15);color:#34d399;}
+.s201{background:rgba(96,165,250,0.15);color:#60a5fa;}
+.s204{background:rgba(167,139,250,0.15);color:#a78bfa;}
+.s500{background:rgba(239,68,68,0.15);color:#f87171;}
+.log-path{color:var(--text2);}
+.log-ms{color:var(--muted);margin-left:auto;white-space:nowrap;}
+
+.mqtt-entry{
+  display:flex;gap:6px;padding:2px 0;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+  animation:fadeIn .3s ease;line-height:1.5;
+  font-family:'JetBrains Mono';font-size:0.67rem;
+}
+.mqtt-dir{font-weight:700;}
+.mqtt-pub{color:#f97316;}
+.mqtt-sub{color:#a78bfa;}
+.mqtt-topic{color:#7dd3fc;}
+.mqtt-payload{color:#94a3b8;}
+
+.db-entry{
+  display:flex;gap:4px;padding:2px 0;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+  animation:fadeIn .3s ease;line-height:1.5;
+  font-family:'JetBrains Mono';font-size:0.62rem;flex-wrap:wrap;
+}
+.db-meas{color:#fbbf24;}
+.db-tag{color:#34d399;}
+.db-field{color:#60a5fa;}
+.db-ts{color:var(--muted);margin-left:auto;}
+
+/* ── SYSTEM HEALTH ── */
+.health-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;}
+.health-item{background:rgba(255,255,255,0.03);border:1px solid var(--border2);border-radius:8px;padding:10px;text-align:center;}
+.health-val{font-family:'JetBrains Mono';font-size:1rem;font-weight:700;color:var(--green);}
+.health-lbl{font-size:0.6rem;color:var(--text2);margin-top:3px;}
+.health-bar{height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin-top:6px;}
+.health-bar-fill{height:3px;border-radius:2px;background:var(--green);transition:width .8s ease;}
+
+/* ── EXPLAIN BOX ── */
+.explain{
+  background:rgba(96,165,250,0.05);border:1px solid rgba(96,165,250,0.15);
+  border-radius:8px;padding:9px 11px;font-size:0.72rem;color:#cbd5e1;
+  line-height:1.55;margin-top:10px;
+}
+.explain strong{color:var(--cyan);}
+
+/* ── SYSTEM LOG ── */
+.syslog-wrap{padding:0 20px 20px;max-width:1560px;margin:0 auto;}
+.syslog{
+  background:rgba(0,0,0,0.3);border:1px solid var(--border2);
+  border-radius:10px;padding:10px 14px;height:140px;overflow-y:auto;
+  font-family:'JetBrains Mono';font-size:0.7rem;
+}
+.sl-entry{
+  display:flex;gap:8px;padding:2px 0;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+  animation:fadeIn .35s ease;
+}
+.sl-ts{color:var(--muted);}
+.sl-phy{color:#60a5fa;}
+.sl-dig{color:#a78bfa;}
+.sl-fbk{color:#34d399;font-weight:700;}
+.sl-wrn{color:#fbbf24;}
+.sl-inc{color:#f87171;font-weight:700;}
+
+/* ── STATE VECTOR PRE ── */
+#stateVec{
+  font-family:'JetBrains Mono';font-size:0.68rem;color:#94a3b8;
+  line-height:1.75;margin-top:4px;background:rgba(0,0,0,0.2);
+  border-radius:6px;padding:8px;
+}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1200px){
+  .main{grid-template-columns:1fr 300px;}
+  .main > .card:last-child{grid-column:1/-1;}
+  .kpi-row{grid-template-columns:repeat(3,1fr);}
+}
+@media(max-width:800px){
+  .main{grid-template-columns:1fr;}
+  .kpi-row{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="h-left">
+    <div class="live-dot"></div>
+    <div>
+      <div class="h-title">🚦 Digital Twin — Nút Giao Thông Thông Minh</div>
+      <div class="h-sub">Ngã Tư Hoàn Kiếm – Đinh Tiên Hoàng · Hà Nội · v2.0 Full-Stack Demo</div>
+    </div>
+  </div>
+  <div class="h-right">
+    <div class="sys-badges">
+      <span class="sys-badge online" id="badge-api">● REST API</span>
+      <span class="sys-badge online" id="badge-mqtt">● MQTT</span>
+      <span class="sys-badge online" id="badge-db">● InfluxDB</span>
+      <span class="sys-badge online" id="badge-ai">● AI Engine</span>
+    </div>
+    <div>
+      <div class="clock" id="clockDisp">--:--:--</div>
+      <div style="font-size:0.62rem;color:var(--text2);text-align:right;" id="simPeriod">Giờ mô phỏng: 17h</div>
+    </div>
+  </div>
+</header>
+
+<!-- ── ARCHITECTURE FLOW BAR ── -->
+<div class="arch-bar">
+  <div class="arch-step l1">
+    <div class="arch-num">1</div>
+    <div>
+      <div>Physical World</div>
+      <div style="font-size:0.6rem;opacity:.7;">Cảm biến IoT · Camera · Loop từ</div>
+    </div>
+    <span class="arch-pulse" style="background:#f87171;"></span>
+  </div>
+  <span class="arch-arrow">⟶</span>
+  <div class="arch-step l2">
+    <div class="arch-num">2</div>
+    <div>
+      <div>Data Ingestion</div>
+      <div style="font-size:0.6rem;opacity:.7;">MQTT · REST API · WebSocket</div>
+    </div>
+    <span class="arch-pulse" style="background:#fb923c;"></span>
+  </div>
+  <span class="arch-arrow">⟶</span>
+  <div class="arch-step l3">
+    <div class="arch-num">3</div>
+    <div>
+      <div>Digital Twin Engine</div>
+      <div style="font-size:0.6rem;opacity:.7;">State x(t) · TimeSeries DB · Sync</div>
+    </div>
+    <span class="arch-pulse" style="background:#facc15;"></span>
+  </div>
+  <span class="arch-arrow">⟶</span>
+  <div class="arch-step l4">
+    <div class="arch-num">4</div>
+    <div>
+      <div>AI / What-If Engine</div>
+      <div style="font-size:0.6rem;opacity:.7;">Optimization · Prediction · Scenario</div>
+    </div>
+    <span class="arch-pulse" style="background:#34d399;"></span>
+  </div>
+  <span class="arch-arrow">⟶</span>
+  <div class="arch-step l5">
+    <div class="arch-num">5</div>
+    <div>
+      <div>Visualization + Control</div>
+      <div style="font-size:0.6rem;opacity:.7;">Dashboard · Command · Feedback</div>
+    </div>
+    <span class="arch-pulse" style="background:#60a5fa;"></span>
+  </div>
+  <span class="arch-arrow" style="margin-left:4px;">⟵ Feedback Loop ⟵</span>
+</div>
+
+<!-- ── MAIN GRID ── -->
+<div class="main">
+
+  <!-- ═══ COL 1: CANVAS + CHART ═══ -->
+  <div style="display:flex;flex-direction:column;gap:14px;">
+
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:#22c55e;box-shadow:0 0 8px #22c55e;"></span>
+        Bản Đồ Ngã Tư 2D — Real-time
+        <span id="incBadge" class="incident-badge"></span>
+        <span style="margin-left:auto;font-size:0.62rem;color:#34d399;">● LIVE</span>
+      </div>
+      <canvas id="cvMain" width="620" height="440"></canvas>
+      <div class="explain">
+        <strong>Lớp 5 – Visualization:</strong> Mỗi nhánh đường hiển thị màu theo mật độ xe thực.
+        Xe ô tô di chuyển thực sự được tính toán từ <strong>State Vector x(t)</strong> của Digital Twin.
+        Đèn tín hiệu phản ánh lệnh từ AI (Layer 4).
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:var(--cyan);"></span>
+        Biểu Đồ Mật Độ Lịch Sử (30 chu kỳ)
+      </div>
+      <canvas id="cvChart" width="620" height="130"></canvas>
+      <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;">
+        <span style="font-size:0.65rem;display:flex;align-items:center;gap:4px;"><span style="width:14px;height:3px;background:#60a5fa;display:inline-block;border-radius:2px;"></span>NS Bắc–Nam</span>
+        <span style="font-size:0.65rem;display:flex;align-items:center;gap:4px;"><span style="width:14px;height:3px;background:#34d399;display:inline-block;border-radius:2px;"></span>EW Đông–Tây</span>
+        <span style="font-size:0.65rem;display:flex;align-items:center;gap:4px;"><span style="width:14px;height:3px;background:#fbbf24;display:inline-block;border-radius:2px;"></span>NE Đông Bắc</span>
+        <span style="font-size:0.65rem;display:flex;align-items:center;gap:4px;"><span style="width:14px;height:3px;background:#f97316;display:inline-block;border-radius:2px;"></span>SW Tây Nam</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══ COL 2: SIGNAL + DENSITY + AI + CONTROL ═══ -->
+  <div style="display:flex;flex-direction:column;gap:14px;">
+
+    <!-- Signal State -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:#fbbf24;"></span>Trạng Thái Đèn Tín Hiệu</div>
+      <div class="sig-grid">
+        <div class="sig-box">
+          <div class="sig-dir">↕ Bắc–Nam (NS)</div>
+          <div class="sig-countdown" id="sig-ns-cd">45</div>
+          <div class="sig-phase" id="sig-ns-ph">🟢 XANH</div>
+          <div class="sig-bar-bg"><div class="sig-bar-fill" id="sig-ns-bar" style="width:50%;background:#22c55e;"></div></div>
+        </div>
+        <div class="sig-box">
+          <div class="sig-dir">↔ Đông–Tây (EW)</div>
+          <div class="sig-countdown" id="sig-ew-cd">45</div>
+          <div class="sig-phase" id="sig-ew-ph">🔴 ĐỎ</div>
+          <div class="sig-bar-bg"><div class="sig-bar-fill" id="sig-ew-bar" style="width:50%;background:#ef4444;"></div></div>
+        </div>
+      </div>
+      <div style="margin-top:8px;display:flex;justify-content:space-between;font-size:0.68rem;">
+        <span style="color:var(--text2);">Chu kỳ: <span style="font-family:'JetBrains Mono';color:var(--cyan);">90s</span></span>
+        <span style="color:var(--text2);">Phase: <span id="phaseLbl" style="color:var(--green);font-weight:700;">NS_GREEN</span></span>
+        <span style="color:var(--text2);">Cycle #<span id="cycleNum" style="font-family:'JetBrains Mono';color:var(--blue);">0</span></span>
+      </div>
+    </div>
+
+    <!-- Density + State Vector Tabs -->
+    <div class="card">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('density',this)">Mật Độ</button>
+        <button class="tab-btn" onclick="switchTab('state',this)">State Vector</button>
+        <button class="tab-btn" onclick="switchTab('analytics',this)">Analytics</button>
+      </div>
+      <div id="tab-density" class="tab-pane active">
+        <div class="card-title" style="margin-bottom:10px;"><span class="dot" style="background:var(--orange);"></span>Mật Độ Xe Theo Hướng</div>
+        <div id="densityBars"></div>
+      </div>
+      <div id="tab-state" class="tab-pane">
+        <div class="card-title" style="margin-bottom:8px;">📐 State Vector x(t)</div>
+        <pre id="stateVec"></pre>
+      </div>
+      <div id="tab-analytics" class="tab-pane">
+        <div class="card-title" style="margin-bottom:8px;">📊 Analytics Thống Kê</div>
+        <div id="analyticsPanel"></div>
+      </div>
+    </div>
+
+    <!-- AI Panel -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--green);"></span>AI What-If Analysis (Layer 4)</div>
+      <div class="ai-wrap">
+        <div class="ai-header">⚡ Kịch Bản Tối Ưu — <span id="aiConf" style="color:#fbbf24;">Conf: 87%</span></div>
+        <div id="scenarioList"></div>
+        <button class="apply-btn" id="applyBtn" onclick="applyRecommendation()">✅ Áp Dụng Đề Xuất Tốt Nhất</button>
+      </div>
+      <div class="explain" style="margin-top:8px;">
+        <strong>Hàm mục tiêu:</strong> J = Σ(density²) → nhỏ nhất.
+        AI chạy <strong>7 kịch bản song song</strong>, chọn kịch bản J thấp nhất rồi gửi lệnh về Physical World qua <strong>Feedback Loop</strong>.
+      </div>
+    </div>
+
+    <!-- Incident Controls -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--red);"></span>Giả Lập Sự Cố (Incident Simulation)</div>
+      <div id="activeBadge"></div>
+      <div class="incident-btns">
+        <button class="inc-btn accident" onclick="triggerIncident('accident')">🚗 Tai Nạn</button>
+        <button class="inc-btn emergency" onclick="triggerIncident('emergency')">🚑 Cấp Cứu</button>
+        <button class="inc-btn vip" onclick="triggerIncident('vip')">🚨 VIP Convoy</button>
+        <button class="inc-btn reset" onclick="clearIncident()">↺ Reset</button>
+      </div>
+      <div class="explain" style="margin-top:8px;">
+        <strong>Thử "Xe Cấp Cứu":</strong> AI sẽ tự động ưu tiên đèn xanh cho hướng NS, gửi lệnh qua MQTT topic <code style="color:var(--cyan);">signal/priority</code>.
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--blue);"></span>Điều Khiển Mô Phỏng</div>
+      <div class="ctrl-row">
+        <label>Tốc độ:</label>
+        <input type="range" id="speedSlider" min="1" max="8" value="3">
+        <div class="ctrl-val" id="speedVal">3×</div>
+      </div>
+      <div class="ctrl-row">
+        <label>Giờ mô phỏng:</label>
+        <input type="range" id="hourSlider" min="0" max="23" value="17">
+        <div class="ctrl-val" id="hourVal">17h</div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button onclick="pauseResume()" id="pauseBtn" style="flex:1;padding:7px;border:1px solid var(--border2);background:rgba(255,255,255,0.04);color:var(--text);border-radius:7px;cursor:pointer;font-size:0.75rem;font-weight:600;">⏸ Tạm Dừng</button>
+        <button onclick="stepOnce()" style="flex:1;padding:7px;border:1px solid var(--border2);background:rgba(255,255,255,0.04);color:var(--text);border-radius:7px;cursor:pointer;font-size:0.75rem;font-weight:600;">⏭ Bước</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══ COL 3: BACKEND SIMULATION ═══ -->
+  <div style="display:flex;flex-direction:column;gap:14px;">
+
+    <!-- REST API Log -->
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:var(--green);"></span>
+        REST API Activity
+        <span style="margin-left:auto;font-size:0.62rem;" id="apiCount">0 calls</span>
+      </div>
+      <div class="log-panel" id="apiLog"></div>
+      <div class="explain" style="margin-top:8px;">
+        <strong>Backend:</strong> Node.js/FastAPI server tại <code style="color:var(--cyan);">http://api.twin.local:8080</code>.
+        Mỗi chu kỳ thực tế gọi ~4 API endpoints.
+      </div>
+    </div>
+
+    <!-- MQTT Panel -->
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:var(--orange);"></span>
+        MQTT Broker Messages
+        <span style="margin-left:auto;font-size:0.62rem;" id="mqttCount">0 msgs</span>
+      </div>
+      <div class="log-panel" id="mqttLog"></div>
+      <div class="explain" style="margin-top:8px;">
+        <strong>Broker:</strong> Mosquitto MQTT tại <code style="color:var(--cyan);">mqtt://broker.twin.local:1883</code>.
+        QoS 1 cho lệnh đèn, QoS 0 cho sensor data.
+      </div>
+    </div>
+
+    <!-- InfluxDB Writes -->
+    <div class="card">
+      <div class="card-title">
+        <span class="dot" style="background:var(--purple);"></span>
+        InfluxDB TimeSeries Writes
+        <span style="margin-left:auto;font-size:0.62rem;" id="dbCount">0 writes</span>
+      </div>
+      <div class="log-panel" id="dbLog"></div>
+      <div class="explain" style="margin-top:8px;">
+        <strong>Database:</strong> InfluxDB v2 · bucket <code style="color:var(--cyan);">traffic_hn</code>.
+        Retention: 30 ngày raw, 1 năm downsampled 5 phút.
+      </div>
+    </div>
+
+    <!-- System Health -->
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--cyan);"></span>System Health — Backend</div>
+      <div class="health-grid">
+        <div class="health-item">
+          <div class="health-val" id="h-cpu">12%</div>
+          <div class="health-lbl">CPU</div>
+          <div class="health-bar"><div class="health-bar-fill" id="h-cpu-bar" style="width:12%;"></div></div>
+        </div>
+        <div class="health-item">
+          <div class="health-val" id="h-mem">340MB</div>
+          <div class="health-lbl">Memory</div>
+          <div class="health-bar"><div class="health-bar-fill" id="h-mem-bar" style="width:34%;background:#60a5fa;"></div></div>
+        </div>
+        <div class="health-item">
+          <div class="health-val" id="h-lat">8ms</div>
+          <div class="health-lbl">API Latency</div>
+          <div class="health-bar"><div class="health-bar-fill" id="h-lat-bar" style="width:8%;background:#a78bfa;"></div></div>
+        </div>
+        <div class="health-item">
+          <div class="health-val" id="h-thr">142</div>
+          <div class="health-lbl">Xe/giờ</div>
+          <div class="health-bar"><div class="health-bar-fill" id="h-thr-bar" style="width:60%;background:#fbbf24;"></div></div>
+        </div>
+        <div class="health-item">
+          <div class="health-val" id="h-mqtt">99.8%</div>
+          <div class="health-lbl">MQTT Uptime</div>
+          <div class="health-bar"><div class="health-bar-fill" id="h-mqtt-bar" style="width:99%;background:#34d399;"></div></div>
+        </div>
+        <div class="health-item">
+          <div class="health-val" id="h-ai">87%</div>
+          <div class="health-lbl">AI Accuracy</div>
+          <div class="health-bar"><div class="health-bar-fill" id="h-ai-bar" style="width:87%;background:#a78bfa;"></div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── KPI ROW ── -->
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="kpi-val" id="kpi-cycles" style="color:var(--blue);">0</div>
+    <div class="kpi-lbl">Chu kỳ đã chạy</div>
+    <div class="kpi-delta" id="kpi-cycles-d" style="color:var(--text2);">–</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-val" id="kpi-decisions" style="color:var(--green);">0</div>
+    <div class="kpi-lbl">Quyết định AI</div>
+    <div class="kpi-delta" id="kpi-decisions-d" style="color:var(--green);">Feedback loops</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-val" id="kpi-density" style="color:var(--orange);">0%</div>
+    <div class="kpi-lbl">Mật độ TB</div>
+    <div class="kpi-delta" id="kpi-density-d" style="color:var(--text2);">–</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-val" id="kpi-wait" style="color:var(--yellow);">0s</div>
+    <div class="kpi-lbl">Thời gian chờ TB</div>
+    <div class="kpi-delta" id="kpi-wait-d" style="color:var(--text2);">–</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-val" id="kpi-throughput" style="color:var(--cyan);">0</div>
+    <div class="kpi-lbl">Xe/giờ (throughput)</div>
+    <div class="kpi-delta" id="kpi-throughput-d" style="color:var(--text2);">–</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-val" id="kpi-co2" style="color:var(--green);">0kg</div>
+    <div class="kpi-lbl">CO₂ tiết kiệm</div>
+    <div class="kpi-delta" style="color:var(--green);font-size:0.6rem;">vs cố định 45s/45s</div>
+  </div>
+</div>
+
+<!-- ── SYSTEM LOG ── -->
+<div class="syslog-wrap">
+  <div class="card-title" style="padding:0 0 8px 0;">
+    📜 Nhật Ký Hệ Thống — Feedback Loop
+    <span style="margin-left:8px;">
+      <span style="color:#60a5fa;font-size:0.65rem;">■ Physical</span> &nbsp;
+      <span style="color:#a78bfa;font-size:0.65rem;">■ Digital</span> &nbsp;
+      <span style="color:#34d399;font-size:0.65rem;">■ Feedback</span> &nbsp;
+      <span style="color:#fbbf24;font-size:0.65rem;">■ Warning</span> &nbsp;
+      <span style="color:#f87171;font-size:0.65rem;">■ Incident</span>
+    </span>
+  </div>
+  <div class="syslog" id="syslog"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//   DIGITAL TWIN — FULL STACK SIMULATION ENGINE
+//   v2.0 — Frontend + Backend Demo
+// ═══════════════════════════════════════════════
+
+const CYCLE = 90;
+const DIRS = ['NS','EW','NE','SW'];
+const COLOR_MAP = [
+  {max:0.28,hex:'#22c55e',name:'Xanh',emoji:'🟢',label:'Thông thoáng'},
+  {max:0.48,hex:'#eab308',name:'Vàng',emoji:'🟡',label:'Bình thường'},
+  {max:0.68,hex:'#f97316',name:'Cam', emoji:'🟠',label:'Hơi đông'},
+  {max:0.82,hex:'#ef4444',name:'Đỏ', emoji:'🔴',label:'Đông đúc'},
+  {max:0.93,hex:'#a855f7',name:'Tím', emoji:'🟣',label:'Rất đông'},
+  {max:1.00,hex:'#92400e',name:'Nâu', emoji:'🟤',label:'Tắc hoàn toàn'},
+];
+
+// ── STATE ──
+let S = { NS:0.52, EW:0.31, NE:0.38, SW:0.27 };
+let signal = { NS_green:55, EW_green:35 };
+let signalPhase = 'NS_GREEN';
+let signalTick = 0;
+let simHour = 17;
+let cycleCount = 0, decisionCount = 0;
+let co2Saved = 0;
+let apiCallCount = 0, mqttMsgCount = 0, dbWriteCount = 0;
+let densityHistory = { NS:[], EW:[], NE:[], SW:[] };
+let paused = false;
+let incident = null; // null | 'accident' | 'emergency' | 'vip'
+let vehicles = [];
+let simInterval = null, signalTimer = null, animFrame = null;
+let prevDensity = 0;
+let prevWait = 0;
+
+// ── UTILS ──
+function getColor(d) {
+  for(const c of COLOR_MAP) if(d <= c.max) return c;
+  return COLOR_MAP[COLOR_MAP.length-1];
+}
+
+function gauss(mean=0, std=0.05) {
+  let u=0,v=0;
+  while(!u) u=Math.random(); while(!v) v=Math.random();
+  return mean + std*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+
+function generateDensity(dir, hour) {
+  const pm = Math.exp(-Math.pow(hour-8,2)/1.8);
+  const pe = Math.exp(-Math.pow(hour-18,2)/1.8);
+  const base = 0.38*(pm+pe) + 0.12;
+  const factor = {NS:1.30, EW:0.88, NE:0.72, SW:0.58}[dir] || 1;
+  if(incident === 'accident' && dir === 'NS') return Math.min(1, base*factor*1.6 + 0.15 + gauss(0,0.04));
+  if(incident === 'emergency') return Math.max(0.05, base*factor*0.6 + gauss(0,0.03));
+  if(incident === 'vip' && dir === 'NS') return Math.max(0.03, base*factor*0.4);
+  return Math.max(0, Math.min(1, base*factor + gauss(0,0.05)));
+}
+
+function predictNext(st, action) {
+  const next = {};
+  for(const [dir, d] of Object.entries(st)) {
+    const gk = dir+'_green';
+    const g = action[gk] || 45;
+    const discharge = (g/CYCLE)*0.88;
+    const inc = d*0.25 + Math.max(0, gauss(0.015, 0.02));
+    next[dir] = Math.max(0, Math.min(1, d - discharge + inc));
+  }
+  return next;
+}
+
+function scoreState(st) {
+  return Object.values(st).reduce((a,v) => a + v*v, 0);
+}
+
+function whatIfAnalysis(st) {
+  const candidates = [
+    {NS_green:20,EW_green:70,NE_green:20,SW_green:20, label:'NS=20 / EW=70'},
+    {NS_green:30,EW_green:60,NE_green:30,SW_green:30, label:'NS=30 / EW=60'},
+    {NS_green:45,EW_green:45,NE_green:45,SW_green:45, label:'NS=45 / EW=45'},
+    {NS_green:55,EW_green:35,NE_green:35,SW_green:35, label:'NS=55 / EW=35'},
+    {NS_green:60,EW_green:30,NE_green:30,SW_green:30, label:'NS=60 / EW=30'},
+    {NS_green:70,EW_green:20,NE_green:20,SW_green:20, label:'NS=70 / EW=20'},
+    {NS_green:40,EW_green:50,NE_green:40,SW_green:40, label:'NS=40 / EW=50'},
+  ];
+  if(incident==='emergency') {
+    candidates.forEach(c => { c.NS_green = Math.max(c.NS_green, 65); c.EW_green = CYCLE - c.NS_green; });
+  }
+  const results = candidates.map(a => ({action:a, next:predictNext(st,a), score:scoreState(predictNext(st,a))}));
+  results.sort((a,b) => a.score-b.score);
+  return results;
+}
+
+// ══════════════════════════════════
+//   BACKEND SIMULATION HELPERS
+// ══════════════════════════════════
+
+function ts() { return new Date().toLocaleTimeString('vi-VN'); }
+
+function simAPI(method, path, status, ms, body='') {
+  apiCallCount++;
+  document.getElementById('apiCount').textContent = apiCallCount + ' calls';
+  const log = document.getElementById('apiLog');
+  const sc = status===200?'s200':status===201?'s201':status===204?'s204':'s500';
+  const mc = method==='GET'?'log-get':method==='POST'?'log-post':'log-put';
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  div.innerHTML = `<span class="log-ts">${ts()}</span>`
+    +`<span class="log-method ${mc}">${method}</span>`
+    +`<span class="log-path">${path}</span>`
+    +`<span class="log-status ${sc}">${status}</span>`
+    +`<span class="log-ms">${ms}ms</span>`;
+  log.insertBefore(div, log.firstChild);
+  while(log.children.length > 50) log.removeChild(log.lastChild);
+}
+
+function simMQTT(dir, topic, payload) {
+  mqttMsgCount++;
+  document.getElementById('mqttCount').textContent = mqttMsgCount + ' msgs';
+  const log = document.getElementById('mqttLog');
+  const div = document.createElement('div');
+  div.className = 'mqtt-entry';
+  div.innerHTML = `<span class="log-ts">${ts()}</span>`
+    +`<span class="mqtt-dir ${dir==='PUB'?'mqtt-pub':'mqtt-sub'}">${dir}</span>`
+    +`<span class="mqtt-topic">${topic}</span>`
+    +`<span class="mqtt-payload">${payload}</span>`;
+  log.insertBefore(div, log.firstChild);
+  while(log.children.length > 50) log.removeChild(log.lastChild);
+}
+
+function simDB(measurement, tags, fields) {
+  dbWriteCount++;
+  document.getElementById('dbCount').textContent = dbWriteCount + ' writes';
+  const log = document.getElementById('dbLog');
+  const div = document.createElement('div');
+  div.className = 'db-entry';
+  const epoch = Math.floor(Date.now()/1000);
+  div.innerHTML = `<span class="db-meas">${measurement}</span>`
+    +`<span class="db-tag">,${tags}</span>`
+    +` <span class="db-field">${fields}</span>`
+    +`<span class="db-ts">${epoch}</span>`;
+  log.insertBefore(div, log.firstChild);
+  while(log.children.length > 50) log.removeChild(log.lastChild);
+}
+
+function sysLog(type, msg) {
+  const box = document.getElementById('syslog');
+  const div = document.createElement('div');
+  div.className = 'sl-entry';
+  const cls = {phy:'sl-phy',dig:'sl-dig',fbk:'sl-fbk',wrn:'sl-wrn',inc:'sl-inc'}[type]||'sl-phy';
+  const pfx = {phy:'→ PHY',dig:'  DIG',fbk:'← FBK',wrn:'⚠  WRN',inc:'🚨 INC'}[type]||'   ---';
+  div.innerHTML = `<span class="sl-ts">${ts()}</span><span class="${cls}">[${pfx}] ${msg}</span>`;
+  box.insertBefore(div, box.firstChild);
+  while(box.children.length > 80) box.removeChild(box.lastChild);
+}
+
+// ══════════════════════════════════
+//   CANVAS — INTERSECTION
+// ══════════════════════════════════
+
+const cvMain = document.getElementById('cvMain');
+const ctx = cvMain.getContext('2d');
+
+class Vehicle {
+  constructor(pathType) {
+    this.pathType = pathType;
+    this.reset();
+  }
+  reset() {
+    this.t = Math.random();
+    this.speed = 0.003 + Math.random()*0.004;
+    const colors = ['#fbbf24','#60a5fa','#34d399','#f87171','#a78bfa','#94a3b8'];
+    this.color = colors[Math.floor(Math.random()*colors.length)];
+    this.w = 12; this.h = 7;
+    this.done = false;
+  }
+  getPos() {
+    const W=cvMain.width, H=cvMain.height;
+    const CX=W/2, CY=H/2;
+    const IS=58, ARM=115;
+    const t = this.t;
+    switch(this.pathType) {
+      case 'NS_in':  return {x:CX-9, y:CY-IS - ARM*(1-t), angle:Math.PI/2};
+      case 'NS_out': return {x:CX+9, y:CY+IS + ARM*t,     angle:Math.PI/2};
+      case 'EW_in':  return {x:CX-IS - ARM*(1-t), y:CY-9, angle:0};
+      case 'EW_out': return {x:CX+IS + ARM*t,     y:CY+9, angle:0};
+      case 'NE_in':  {
+        const s=Math.sqrt(0.5);
+        return {x:CX-IS*s - ARM*s*(1-t), y:CY-IS*s - ARM*s*(1-t), angle:-Math.PI/4};
+      }
+      case 'SW_out': {
+        const s=Math.sqrt(0.5);
+        return {x:CX+IS*s + ARM*s*t, y:CY+IS*s + ARM*s*t, angle:-Math.PI/4};
+      }
+      default: return {x:CX,y:CY,angle:0};
+    }
+  }
+  update(densityDir) {
+    if(this.done) return;
+    const baseSpeed = this.speed;
+    const density = densityDir || 0.3;
+    const speedFactor = Math.max(0.1, 1 - density*0.8);
+    this.t += baseSpeed * speedFactor;
+    if(this.t >= 1) { this.done = true; }
+  }
+  draw() {
+    if(this.done) return;
+    const {x,y,angle} = this.getPos();
+    ctx.save();
+    ctx.translate(x,y); ctx.rotate(angle);
+    ctx.fillStyle = this.color;
+    ctx.shadowColor = this.color; ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.roundRect(-this.w/2, -this.h/2, this.w, this.h, 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+}
+
+// Vehicle spawn
+const pathTypes = ['NS_in','NS_out','EW_in','EW_out','NE_in','SW_out'];
+
+function spawnVehicles() {
+  const densityMap = {NS_in:S.NS,NS_out:S.NS,EW_in:S.EW,EW_out:S.EW,NE_in:S.NE,SW_out:S.SW};
+  for(const pt of pathTypes) {
+    const d = densityMap[pt];
+    const count = Math.round(d * 5 + 1);
+    for(let i=0; i<count; i++) {
+      vehicles.push(new Vehicle(pt));
+    }
+  }
+}
+
+function drawIntersection() {
+  const W=cvMain.width, H=cvMain.height;
+  const CX=W/2, CY=H/2;
+  const IS=58, ARM=115, RW=62;
+
+  ctx.clearRect(0,0,W,H);
+
+  // Background
+  const bg = ctx.createRadialGradient(CX,CY,0,CX,CY,W*0.65);
+  bg.addColorStop(0,'#172035');
+  bg.addColorStop(1,'#080c14');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+  // Grid
+  ctx.strokeStyle='rgba(255,255,255,0.025)'; ctx.lineWidth=1;
+  for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+  // Draw road arm
+  function drawArm(x1,y1,x2,y2,density) {
+    const c = getColor(density);
+    const dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy);
+    const nx=-dy/len*RW/2, ny=dx/len*RW/2;
+
+    // Shadow road
+    ctx.beginPath();
+    ctx.moveTo(x1+nx*1.4,y1+ny*1.4);
+    ctx.lineTo(x2+nx*1.4,y2+ny*1.4);
+    ctx.lineTo(x2-nx*1.4,y2-ny*1.4);
+    ctx.lineTo(x1-nx*1.4,y1-ny*1.4);
+    ctx.closePath();
+    ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.fill();
+
+    // Road surface
+    const grad = ctx.createLinearGradient(x1,y1,x2,y2);
+    grad.addColorStop(0, c.hex+'dd');
+    grad.addColorStop(0.4, c.hex+'99');
+    grad.addColorStop(1, c.hex+'33');
+    ctx.beginPath();
+    ctx.moveTo(x1+nx,y1+ny);
+    ctx.lineTo(x2+nx,y2+ny);
+    ctx.lineTo(x2-nx,y2-ny);
+    ctx.lineTo(x1-nx,y1-ny);
+    ctx.closePath();
+    ctx.fillStyle=grad;
+    ctx.shadowColor=c.hex; ctx.shadowBlur=18; ctx.fill(); ctx.shadowBlur=0;
+
+    // Lane divider
+    ctx.strokeStyle='rgba(255,255,255,0.18)'; ctx.lineWidth=1.5;
+    ctx.setLineDash([10,7]);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Density label
+    const mx=(x1+x2)/2, my=(y1+y2)/2;
+    const lx=mx+nx*0.6, ly=my+ny*0.6;
+    ctx.fillStyle='rgba(0,0,0,0.7)';
+    ctx.beginPath(); ctx.roundRect(lx-22,ly-10,44,20,4); ctx.fill();
+    ctx.fillStyle=c.hex;
+    ctx.font='bold 11px "JetBrains Mono",monospace';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(Math.round(density*100)+'%', lx, ly);
+  }
+
+  // Arms
+  drawArm(CX, CY-IS, CX, CY-IS-ARM, S.NS);       // North
+  drawArm(CX, CY+IS, CX, CY+IS+ARM, S.NS);       // South
+  drawArm(CX-IS, CY, CX-IS-ARM, CY, S.EW);       // West
+  drawArm(CX+IS, CY, CX+IS+ARM, CY, S.EW);       // East
+  const d=Math.sqrt(0.5);
+  drawArm(CX-IS*d,CY-IS*d, CX-IS*d-ARM*d,CY-IS*d-ARM*d, S.NE); // NW diagonal
+  drawArm(CX+IS*d,CY+IS*d, CX+IS*d+ARM*d,CY+IS*d+ARM*d, S.SW); // SE diagonal
+
+  // Center island
+  ctx.fillStyle='#1a2640';
+  ctx.strokeStyle='rgba(100,130,200,0.25)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.roundRect(CX-IS,CY-IS,IS*2,IS*2,8); ctx.fill(); ctx.stroke();
+
+  // Crossings
+  ctx.fillStyle='rgba(255,255,255,0.1)';
+  for(let i=0;i<4;i++) {
+    ctx.fillRect(CX-IS+5+i*11, CY+IS, 7, 16);
+    ctx.fillRect(CX-IS+5+i*11, CY-IS-16, 7, 16);
+    ctx.fillRect(CX+IS+2, CY-IS+5+i*11, 16, 7);
+    ctx.fillRect(CX-IS-16, CY-IS+5+i*11, 16, 7);
+  }
+
+  // Traffic lights
+  function drawLight(x,y,phase) {
+    // Pole
+    ctx.fillStyle='#374151';
+    ctx.fillRect(x-2,y-28,4,28);
+    // Box
+    ctx.fillStyle='#0f172a';
+    ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.roundRect(x-9,y-58,18,44,4); ctx.fill(); ctx.stroke();
+    // Red
+    const rOn = phase==='RED';
+    ctx.shadowBlur=rOn?14:0; ctx.shadowColor='#ef4444';
+    ctx.fillStyle=rOn?'#ef4444':'#374151';
+    ctx.beginPath(); ctx.arc(x,y-46,5,0,Math.PI*2); ctx.fill();
+    // Yellow
+    const yOn = phase==='YELLOW';
+    ctx.shadowBlur=yOn?14:0; ctx.shadowColor='#fbbf24';
+    ctx.fillStyle=yOn?'#fbbf24':'#374151';
+    ctx.beginPath(); ctx.arc(x,y-36,5,0,Math.PI*2); ctx.fill();
+    // Green
+    const gOn = phase==='GREEN';
+    ctx.shadowBlur=gOn?14:0; ctx.shadowColor='#22c55e';
+    ctx.fillStyle=gOn?'#22c55e':'#374151';
+    ctx.beginPath(); ctx.arc(x,y-26,5,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+  }
+
+  const nsPhase = signalPhase==='NS_GREEN'?'GREEN':(signalPhase==='NS_YELLOW'?'YELLOW':'RED');
+  const ewPhase = signalPhase==='EW_GREEN'?'GREEN':(signalPhase==='EW_YELLOW'?'YELLOW':'RED');
+
+  drawLight(CX-IS-10, CY-IS, nsPhase);
+  drawLight(CX+IS+10, CY+IS, nsPhase);
+  drawLight(CX-IS,    CY-IS-10, ewPhase);
+  drawLight(CX+IS,    CY+IS+10, ewPhase);
+
+  // Center icon
+  ctx.fillStyle='rgba(255,255,255,0.45)';
+  ctx.font='bold 18px Inter';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('✚', CX, CY);
+
+  // Direction labels
+  ctx.font='bold 11px Inter'; ctx.fillStyle='rgba(255,255,255,0.5)';
+  ctx.fillText('↑ NS',  CX+RW*0.9,  CY-IS-ARM/2);
+  ctx.fillText('↓ NS',  CX+RW*0.9,  CY+IS+ARM/2);
+  ctx.fillText('EW →',  CX+IS+ARM/2, CY-RW*0.9);
+  ctx.fillText('← EW',  CX-IS-ARM/2, CY-RW*0.9);
+
+  // Incident overlay
+  if(incident==='accident') {
+    ctx.fillStyle='rgba(239,68,68,0.12)';
+    ctx.fillRect(CX-IS,CY-IS,IS*2,IS*2);
+    ctx.fillStyle='#f87171'; ctx.font='bold 13px Inter';
+    ctx.fillText('⚠ ACCIDENT', CX, CY+10);
+  } else if(incident==='emergency') {
+    ctx.fillStyle='rgba(251,191,36,0.12)';
+    ctx.fillRect(CX-IS,CY-IS,IS*2,IS*2);
+    ctx.fillStyle='#fbbf24'; ctx.font='bold 13px Inter';
+    ctx.fillText('🚑 EMERGENCY', CX, CY+10);
+  } else if(incident==='vip') {
+    ctx.fillStyle='rgba(167,139,250,0.12)';
+    ctx.fillRect(CX-IS,CY-IS,IS*2,IS*2);
+    ctx.fillStyle='#a78bfa'; ctx.font='bold 13px Inter';
+    ctx.fillText('🚨 VIP', CX, CY+10);
+  }
+}
+
+// ── CHART ──
+const cvChart = document.getElementById('cvChart');
+const ctx2 = cvChart.getContext('2d');
+const HIST_MAX = 30;
+
+function drawChart() {
+  const W=cvChart.width, H=cvChart.height;
+  ctx2.clearRect(0,0,W,H);
+
+  // Background
+  ctx2.fillStyle='rgba(15,22,35,0.8)'; ctx2.fillRect(0,0,W,H);
+
+  // Grid lines
+  ctx2.strokeStyle='rgba(255,255,255,0.05)'; ctx2.lineWidth=1;
+  for(let i=1;i<=4;i++) {
+    const y = H - (H/4)*i;
+    ctx2.beginPath(); ctx2.moveTo(0,y); ctx2.lineTo(W,y); ctx2.stroke();
+    ctx2.fillStyle='rgba(255,255,255,0.25)'; ctx2.font='9px "JetBrains Mono"';
+    ctx2.fillText((25*i)+'%', 2, y-2);
+  }
+
+  const lineColors = {NS:'#60a5fa',EW:'#34d399',NE:'#fbbf24',SW:'#f97316'};
+  for(const dir of DIRS) {
+    const hist = densityHistory[dir];
+    if(hist.length < 2) continue;
+    ctx2.strokeStyle = lineColors[dir];
+    ctx2.lineWidth = 2;
+    ctx2.shadowColor = lineColors[dir]; ctx2.shadowBlur = 4;
+    ctx2.beginPath();
+    hist.forEach((v,i) => {
+      const x = (i/(HIST_MAX-1))*W;
+      const y = H - v*H;
+      i===0 ? ctx2.moveTo(x,y) : ctx2.lineTo(x,y);
+    });
+    ctx2.stroke();
+    ctx2.shadowBlur=0;
+
+    // Dot at end
+    if(hist.length>0) {
+      const lv = hist[hist.length-1];
+      const lx = ((hist.length-1)/(HIST_MAX-1))*W;
+      const ly = H - lv*H;
+      ctx2.fillStyle = lineColors[dir];
+      ctx2.beginPath(); ctx2.arc(lx,ly,3,0,Math.PI*2); ctx2.fill();
+    }
+  }
+}
+
+// ── ANIMATION LOOP ──
+function animLoop() {
+  // Update vehicles
+  vehicles = vehicles.filter(v => !v.done);
+  if(vehicles.length < 25) spawnVehicles();
+  const dMap = {NS_in:S.NS,NS_out:S.NS,EW_in:S.EW,EW_out:S.EW,NE_in:S.NE,SW_out:S.SW};
+  vehicles.forEach(v => v.update(dMap[v.pathType]));
+
+  drawIntersection();
+  vehicles.forEach(v => v.draw());
+
+  animFrame = requestAnimationFrame(animLoop);
+}
+
+// ── SIGNAL PHASE TIMER ──
+function tickSignal() {
+  signalTick++;
+  const ns = signal.NS_green;
+  const yellow = 4;
+  const total = CYCLE;
+
+  if(signalTick <= ns - yellow) {
+    signalPhase = 'NS_GREEN';
+    updateSignalDisplay('NS_GREEN', ns - signalTick, total - (ns - signalTick));
+  } else if(signalTick <= ns) {
+    signalPhase = 'NS_YELLOW';
+    updateSignalDisplay('NS_YELLOW', ns - signalTick, 0);
+  } else if(signalTick <= ns + signal.EW_green - yellow) {
+    signalPhase = 'EW_GREEN';
+    updateSignalDisplay('EW_GREEN', 0, ns + signal.EW_green - signalTick);
+  } else if(signalTick <= ns + signal.EW_green) {
+    signalPhase = 'EW_YELLOW';
+    updateSignalDisplay('EW_YELLOW', 0, ns + signal.EW_green - signalTick);
+  } else {
+    signalTick = 0;
+    signalPhase = 'NS_GREEN';
+  }
+}
+
+function updateSignalDisplay(phase, nsLeft, ewLeft) {
+  const nsEl = document.getElementById('sig-ns-cd');
+  const ewEl = document.getElementById('sig-ew-cd');
+  const nsPh = document.getElementById('sig-ns-ph');
+  const ewPh = document.getElementById('sig-ew-ph');
+  const nsBar = document.getElementById('sig-ns-bar');
+  const ewBar = document.getElementById('sig-ew-bar');
+
+  if(phase==='NS_GREEN') {
+    nsEl.textContent=nsLeft; nsEl.style.color='#22c55e';
+    nsPh.textContent='🟢 XANH'; nsPh.style.color='#22c55e';
+    nsBar.style.width=(nsLeft/signal.NS_green*100)+'%'; nsBar.style.background='#22c55e';
+    ewEl.textContent=nsLeft+signal.EW_green; ewEl.style.color='#ef4444';
+    ewPh.textContent='🔴 ĐỎ'; ewPh.style.color='#ef4444';
+    ewBar.style.width=((nsLeft+signal.EW_green)/CYCLE*100)+'%'; ewBar.style.background='#ef4444';
+    document.getElementById('phaseLbl').textContent='NS_GREEN';
+  } else if(phase==='NS_YELLOW') {
+    nsEl.textContent=nsLeft||0; nsEl.style.color='#fbbf24';
+    nsPh.textContent='🟡 VÀNG'; nsPh.style.color='#fbbf24';
+    nsBar.style.width='5%'; nsBar.style.background='#fbbf24';
+    document.getElementById('phaseLbl').textContent='NS_YELLOW';
+  } else if(phase==='EW_GREEN') {
+    ewEl.textContent=ewLeft; ewEl.style.color='#22c55e';
+    ewPh.textContent='🟢 XANH'; ewPh.style.color='#22c55e';
+    ewBar.style.width=(ewLeft/signal.EW_green*100)+'%'; ewBar.style.background='#22c55e';
+    nsEl.textContent=ewLeft+signal.NS_green; nsEl.style.color='#ef4444';
+    nsPh.textContent='🔴 ĐỎ'; nsPh.style.color='#ef4444';
+    nsBar.style.width=((ewLeft+signal.NS_green)/CYCLE*100)+'%'; nsBar.style.background='#ef4444';
+    document.getElementById('phaseLbl').textContent='EW_GREEN';
+  } else if(phase==='EW_YELLOW') {
+    ewEl.textContent=ewLeft||0; ewEl.style.color='#fbbf24';
+    ewPh.textContent='🟡 VÀNG'; ewPh.style.color='#fbbf24';
+    ewBar.style.width='5%'; ewBar.style.background='#fbbf24';
+    document.getElementById('phaseLbl').textContent='EW_YELLOW';
+  }
+}
+
+// ── DENSITY BARS ──
+function updateDensityBars() {
+  const container = document.getElementById('densityBars');
+  container.innerHTML='';
+  const dirNames = {NS:'↕ NS Bắc–Nam',EW:'↔ EW Đông–Tây',NE:'↗ NE Đông Bắc',SW:'↙ SW Tây Nam'};
+  for(const dir of DIRS) {
+    const d=S[dir], c=getColor(d);
+    const row=document.createElement('div');
+    row.className='dens-row';
+    row.innerHTML=`<div class="dens-lbl">${dir}</div>
+      <div class="dens-bg">
+        <div class="dens-fill" style="width:${d*100}%;background:${c.hex};"></div>
+      </div>
+      <div class="dens-pct" style="color:${c.hex}">${Math.round(d*100)}%</div>
+      <div class="dens-ico">${c.emoji}</div>`;
+    container.appendChild(row);
+  }
+}
+
+// ── STATE VECTOR ──
+function updateStateVector() {
+  const waitNS = Math.round(S.NS*55), waitEW = Math.round(S.EW*55);
+  const throughput = Math.round((1-((S.NS+S.EW)/2))*200);
+  document.getElementById('stateVec').textContent =
+`x(t) = {
+  NS_density:  ${S.NS.toFixed(4)}  /* ${getColor(S.NS).label} */
+  EW_density:  ${S.EW.toFixed(4)}  /* ${getColor(S.EW).label} */
+  NE_density:  ${S.NE.toFixed(4)}  /* ${getColor(S.NE).label} */
+  SW_density:  ${S.SW.toFixed(4)}  /* ${getColor(S.SW).label} */
+
+  NS_wait_sec: ${waitNS}s
+  EW_wait_sec: ${waitEW}s
+  throughput:  ${throughput} veh/hr
+
+  signal: {
+    NS_green: ${signal.NS_green}s
+    EW_green: ${signal.EW_green}s
+    phase:    "${signalPhase}"
+    tick:     ${signalTick}/${CYCLE}
+  }
+
+  incident:    ${incident||'none'}
+  sim_hour:    ${simHour}h
+  cycle_total: ${CYCLE}s
+}`.trim();
+}
+
+// ── ANALYTICS ──
+function updateAnalytics() {
+  const avgHist = {};
+  for(const dir of DIRS) {
+    const h = densityHistory[dir];
+    avgHist[dir] = h.length>0 ? (h.reduce((a,b)=>a+b,0)/h.length) : 0;
+  }
+  const panel = document.getElementById('analyticsPanel');
+  const peak = Object.entries(S).sort((a,b)=>b[1]-a[1])[0];
+  const aiDecRate = cycleCount>0?(decisionCount/cycleCount*100).toFixed(0):0;
+  panel.innerHTML=`
+  <div style="font-size:0.72rem;color:var(--text2);line-height:2;">
+    <div>Hướng đông đúc nhất: <strong style="color:${getColor(peak[1]).hex}">${peak[0]} (${Math.round(peak[1]*100)}%)</strong></div>
+    <div>Trung bình NS (30 chu kỳ): <strong style="color:#60a5fa">${(avgHist.NS*100).toFixed(1)}%</strong></div>
+    <div>Trung bình EW (30 chu kỳ): <strong style="color:#34d399">${(avgHist.EW*100).toFixed(1)}%</strong></div>
+    <div>Tỷ lệ AI can thiệp: <strong style="color:#a78bfa">${aiDecRate}%</strong></div>
+    <div>CO₂ tiết kiệm ước tính: <strong style="color:#34d399">${co2Saved.toFixed(2)} kg</strong></div>
+    <div>Tổng xe xử lý: <strong style="color:#fbbf24">${(cycleCount*180*((1-(S.NS+S.EW)/2))).toFixed(0)} xe</strong></div>
+  </div>`;
+}
+
+// ── SCENARIOS ──
+function updateScenarios() {
+  const results = whatIfAnalysis(S);
+  const best = results[0];
+  window._bestAction = best.action;
+  window._bestScore = best.score;
+
+  const conf = Math.round(85 + Math.random()*12);
+  document.getElementById('aiConf').textContent = `Conf: ${conf}%`;
+
+  document.getElementById('scenarioList').innerHTML = results.slice(0,5).map((r,i)=>{
+    const isBest = i===0;
+    return `<div class="sc-row">
+      <span class="sc-badge ${isBest?'best':''}">${isBest?'✅ TỐT NHẤT':'#'+(i+1)}</span>
+      <span style="font-size:0.72rem;color:${isBest?'#34d399':'#94a3b8'}">${r.action.label}</span>
+      <span class="sc-score ${isBest?'best':''}">J=${r.score.toFixed(3)}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── KPIs ──
+function updateKPIs() {
+  const avg = (DIRS.reduce((a,d)=>a+S[d],0)/4);
+  const avgPct = (avg*100).toFixed(0);
+  const wait = Math.round(avg*55);
+  const throughput = Math.round((1-avg)*220);
+  co2Saved += decisionCount>0 ? (signal.NS_green-45)/90*0.002 : 0;
+
+  const prevAvg = prevDensity;
+  const delta = (avg*100 - prevAvg).toFixed(1);
+  const deltaColor = delta<0?'#34d399':delta>0?'#f87171':'#94a3b8';
+  prevDensity = avg*100;
+
+  document.getElementById('kpi-cycles').textContent = cycleCount;
+  document.getElementById('kpi-decisions').textContent = decisionCount;
+  document.getElementById('kpi-density').textContent = avgPct+'%';
+  document.getElementById('kpi-density').style.color = avg>0.7?'#ef4444':avg>0.5?'#f97316':avg>0.3?'#eab308':'#22c55e';
+  document.getElementById('kpi-density-d').textContent = (delta>=0?'+':'')+delta+'% vs trước';
+  document.getElementById('kpi-density-d').style.color = deltaColor;
+  document.getElementById('kpi-wait').textContent = wait+'s';
+  document.getElementById('kpi-wait').style.color = wait>35?'#ef4444':wait>20?'#fbbf24':'#34d399';
+  document.getElementById('kpi-throughput').textContent = throughput;
+  document.getElementById('kpi-co2').textContent = co2Saved.toFixed(2)+'kg';
+  document.getElementById('cycleNum').textContent = cycleCount;
+}
+
+// ── SYSTEM HEALTH ──
+function updateHealth() {
+  const cpu = Math.round(8 + (S.NS+S.EW)*15 + Math.random()*5);
+  const mem = Math.round(280 + cycleCount*0.3 + Math.random()*20);
+  const lat = Math.round(5 + (S.NS+S.EW)*8 + Math.random()*4);
+  const thr = Math.round((1-(S.NS+S.EW)/2)*220);
+  const aiAcc = Math.round(82 + Math.random()*12);
+
+  document.getElementById('h-cpu').textContent = cpu+'%';
+  document.getElementById('h-cpu').style.color = cpu>70?'#f87171':cpu>40?'#fbbf24':'#34d399';
+  document.getElementById('h-cpu-bar').style.width = cpu+'%';
+  document.getElementById('h-cpu-bar').style.background = cpu>70?'#ef4444':cpu>40?'#fbbf24':'#34d399';
+
+  document.getElementById('h-mem').textContent = mem+'MB';
+  document.getElementById('h-mem-bar').style.width = Math.min(99,mem/10)+'%';
+
+  document.getElementById('h-lat').textContent = lat+'ms';
+  document.getElementById('h-lat').style.color = lat>50?'#f87171':lat>20?'#fbbf24':'#34d399';
+  document.getElementById('h-lat-bar').style.width = Math.min(99,lat*2)+'%';
+  document.getElementById('h-lat-bar').style.background = lat>50?'#ef4444':lat>20?'#fbbf24':'#a78bfa';
+
+  document.getElementById('h-thr').textContent = thr;
+  document.getElementById('h-thr-bar').style.width = Math.min(99,thr/2.2)+'%';
+
+  document.getElementById('h-ai').textContent = aiAcc+'%';
+  document.getElementById('h-ai-bar').style.width = aiAcc+'%';
+}
+
+// ── BACKEND SIMULATION PER TICK ──
+function simulateBackend() {
+  const ms = () => Math.round(5+Math.random()*40);
+  const nsD = S.NS.toFixed(3), ewD = S.EW.toFixed(3);
+  const count = Math.round(S.NS*180);
+
+  // REST API
+  simAPI('GET', `/api/v1/intersection/hk01/state`, 200, ms());
+  setTimeout(()=>simAPI('POST',`/api/v1/sensor/batch`,201,ms(), `{n:4}`), 120);
+  setTimeout(()=>simAPI('GET', `/api/v1/ai/scenarios?n=7`,200, ms()+10), 250);
+  if(decisionCount>0) setTimeout(()=>simAPI('PUT',`/api/v1/signal/hk01/command`,204,ms()), 380);
+
+  // MQTT
+  simMQTT('PUB', `traffic/hn/hk01/sensor/NS`, `{d:${nsD},cnt:${count}}`);
+  setTimeout(()=>simMQTT('PUB',`traffic/hn/hk01/sensor/EW`,`{d:${ewD},cnt:${Math.round(S.EW*120)}}`), 90);
+  setTimeout(()=>simMQTT('SUB',`traffic/hn/hk01/signal/cmd`,`{ns_g:${signal.NS_green},ew_g:${signal.EW_green}}`), 300);
+  if(incident) setTimeout(()=>simMQTT('PUB',`traffic/hn/hk01/incident`,`{type:"${incident}",ts:${Date.now()}}`), 60);
+
+  // InfluxDB
+  simDB('traffic_density', `loc=hk01,dir=NS`, `value=${nsD}`);
+  setTimeout(()=>simDB('traffic_density',`loc=hk01,dir=EW`,`value=${ewD}`), 80);
+  setTimeout(()=>simDB('signal_state', `loc=hk01`, `ns_g=${signal.NS_green},ew_g=${signal.EW_green}`), 160);
+  setTimeout(()=>simDB('throughput', `loc=hk01`, `veh_hr=${Math.round((1-(S.NS+S.EW)/2)*220)}`), 240);
+}
+
+// ── MAIN SIMULATION TICK ──
+function tick() {
+  cycleCount++;
+  simHour = parseInt(document.getElementById('hourSlider').value);
+
+  // Period label
+  const period = (simHour>=7&&simHour<=9)?'⛽ Cao điểm sáng'
+    :(simHour>=17&&simHour<=19)?'🔴 Cao điểm chiều'
+    :(simHour>=22||simHour<=5)?'🌙 Khuya / Sáng sớm'
+    :'☀️ Giờ bình thường';
+  document.getElementById('simPeriod').textContent = `Giờ mô phỏng: ${simHour}h — ${period}`;
+
+  // Generate new state (Physical World → Digital Twin)
+  const newS = {};
+  for(const dir of DIRS) newS[dir] = generateDensity(dir, simHour);
+
+  // Apply feedback effect from AI decisions
+  const nsDelta = (signal.NS_green - 45)/90*0.28;
+  const ewDelta = (signal.EW_green - 45)/90*0.28;
+  newS.NS = Math.max(0, Math.min(1, newS.NS - nsDelta));
+  newS.EW = Math.max(0, Math.min(1, newS.EW - ewDelta));
+
+  S = newS;
+
+  // History
+  for(const dir of DIRS) {
+    densityHistory[dir].push(S[dir]);
+    if(densityHistory[dir].length > HIST_MAX) densityHistory[dir].shift();
+  }
+
+  // Warnings
+  if(S.NS > 0.75 || S.EW > 0.75) sysLog('wrn', `Mật độ cao bất thường! NS=${Math.round(S.NS*100)}% EW=${Math.round(S.EW*100)}%`);
+  if(incident==='accident') sysLog('inc', `Tai nạn active tại NS — AI đang tính toán phương án phân luồng`);
+  if(incident==='emergency') sysLog('inc', `Xe cứu thương — ưu tiên xanh NS, thời gian còn lại: ${signal.NS_green}s`);
+
+  // Log
+  sysLog('phy', `Cảm biến → NS:${Math.round(S.NS*100)}%${getColor(S.NS).emoji} EW:${Math.round(S.EW*100)}%${getColor(S.EW).emoji} NE:${Math.round(S.NE*100)}% SW:${Math.round(S.SW*100)}%`);
+
+  // Backend simulation (async)
+  simulateBackend();
+
+  // Update all displays
+  updateDensityBars();
+  updateStateVector();
+  updateAnalytics();
+  updateScenarios();
+  updateKPIs();
+  updateHealth();
+  drawChart();
+
+  sysLog('dig', `Digital Twin sync x(t) | Best: ${window._bestAction?.label||'calculating...'} J=${window._bestScore?.toFixed(3)||'—'}`);
+}
+
+// ── APPLY RECOMMENDATION ──
+function applyRecommendation() {
+  if(!window._bestAction) return;
+  const btn = document.getElementById('applyBtn');
+  btn.disabled=true; btn.textContent='⏳ Gửi lệnh đến Physical World...';
+
+  sysLog('dig', `AI quyết định: ${window._bestAction.label} (J=${window._bestScore.toFixed(3)})`);
+  simMQTT('PUB', `traffic/hn/hk01/signal/command`, `{ns_g:${window._bestAction.NS_green},ew_g:${window._bestAction.EW_green},src:"AI"}`);
+  simAPI('POST', `/api/v1/signal/hk01/apply`, 204, Math.round(8+Math.random()*15));
+
+  setTimeout(()=>{
+    signal.NS_green = window._bestAction.NS_green;
+    signal.EW_green = window._bestAction.EW_green;
+    decisionCount++;
+    sysLog('fbk', `✅ FEEDBACK LOOP ĐÓNG! Đèn cập nhật → NS=${signal.NS_green}s / EW=${signal.EW_green}s`);
+    sysLog('fbk', `   Chu kỳ tiếp theo x(t+1) sẽ phản ánh hiệu quả quyết định này`);
+    simDB('ai_decision','loc=hk01',`ns_g=${signal.NS_green},ew_g=${signal.EW_green},score=${window._bestScore.toFixed(4)}`);
+    btn.textContent='✅ Đã Áp Dụng!'; btn.style.background='linear-gradient(135deg,#1d4ed8,#1e40af)';
+    setTimeout(()=>{
+      btn.disabled=false; btn.textContent='✅ Áp Dụng Đề Xuất Tốt Nhất'; btn.style.background='';
+    },3000);
+  },700);
+}
+
+// ── INCIDENT SIMULATION ──
+function triggerIncident(type) {
+  incident = type;
+  const badge = document.getElementById('activeBadge');
+  const styles = {
+    accident:'background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3)',
+    emergency:'background:rgba(251,191,36,0.15);color:#fbbf24;border:1px solid rgba(251,191,36,0.3)',
+    vip:'background:rgba(167,139,250,0.15);color:#a78bfa;border:1px solid rgba(167,139,250,0.3)',
+  };
+  const labels = {accident:'🚗 TAI NẠN ĐANG XỬ LÝ',emergency:'🚑 XE CẤP CỨU ƯU TIÊN',vip:'🚨 VIP CONVOY ACTIVE'};
+  badge.style.cssText = styles[type]+';display:block;padding:6px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;margin-bottom:8px;animation:fadeIn .4s ease';
+  badge.textContent = labels[type];
+
+  sysLog('inc', `Sự cố kích hoạt: [${type.toUpperCase()}] — AI điều chỉnh tín hiệu khẩn cấp`);
+  simMQTT('PUB', `traffic/hn/hk01/incident/alert`, `{type:"${type}",severity:"HIGH",ts:${Date.now()}}`);
+  simAPI('POST', `/api/v1/incident/hk01/create`, 201, Math.round(5+Math.random()*10));
+  document.getElementById('badge-api').className='sys-badge warn';
+  setTimeout(()=>{ document.getElementById('badge-api').className='sys-badge online'; }, 3000);
+}
+
+function clearIncident() {
+  incident=null;
+  document.getElementById('activeBadge').style.display='none';
+  sysLog('fbk', `Sự cố đã xử lý — hệ thống trở về chế độ bình thường`);
+}
+
+// ── PAUSE / STEP ──
+function pauseResume() {
+  paused = !paused;
+  const btn = document.getElementById('pauseBtn');
+  if(paused) {
+    clearInterval(simInterval);
+    cancelAnimationFrame(animFrame);
+    btn.textContent='▶ Tiếp Tục';
+  } else {
+    btn.textContent='⏸ Tạm Dừng';
+    restartInterval();
+    animLoop();
+  }
+}
+
+function stepOnce() {
+  if(!paused) return;
+  tick();
+  drawIntersection();
+}
+
+// ── SPEED/HOUR SLIDERS ──
+const speedSlider = document.getElementById('speedSlider');
+const hourSlider  = document.getElementById('hourSlider');
+
+function restartInterval() {
+  if(simInterval) clearInterval(simInterval);
+  const speed = parseInt(speedSlider.value);
+  document.getElementById('speedVal').textContent=speed+'×';
+  simInterval = setInterval(tick, Math.round(4000/speed));
+}
+
+speedSlider.addEventListener('input', restartInterval);
+hourSlider.addEventListener('input', ()=>{
+  document.getElementById('hourVal').textContent=hourSlider.value+'h';
+  tick();
+});
+
+// ── TABS ──
+function switchTab(name, el) {
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  el.classList.add('active');
+}
+
+// ── CLOCK ──
+setInterval(()=>{
+  document.getElementById('clockDisp').textContent = new Date().toLocaleTimeString('vi-VN');
+  tickSignal();
+}, 1000);
+document.getElementById('clockDisp').textContent = new Date().toLocaleTimeString('vi-VN');
+
+// ── INIT ──
+spawnVehicles();
+animLoop();
+tick();
+restartInterval();
+
+// Initial log messages
+sysLog('phy', '🚀 Digital Twin v2.0 khởi động — Ngã Tư Hoàn Kiếm – Đinh Tiên Hoàng');
+sysLog('dig', '📡 MQTT Broker kết nối: mqtt://broker.twin.local:1883');
+sysLog('dig', '🗄️ InfluxDB v2 ready: bucket=traffic_hn, org=bachasoft');
+sysLog('dig', '🤖 AI What-if Engine: 7 kịch bản/chu kỳ, hàm J=Σ(density²)');
+sysLog('fbk', '🔄 Feedback Loop khởi tạo — Layer 1 ↔ Layer 5 đã kết nối');
+simAPI('GET', '/api/v1/health', 200, 12);
+simAPI('GET', '/api/v1/intersection/hk01/init', 200, 24);
+simMQTT('SUB', 'traffic/hn/hk01/#', '{qos:1}');
+simMQTT('PUB', 'traffic/hn/hk01/system', '{status:"online",v:"2.0"}');
+simDB('system_event','loc=hk01','event="startup"');
+</script>
+</body>
+</html>

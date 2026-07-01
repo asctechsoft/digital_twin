@@ -2,8 +2,13 @@
 
 module.exports = {
   PORT: parseInt(process.env.PORT || '3000'),
+  HOST: process.env.HOST || '0.0.0.0',           // 0.0.0.0 = lắng nghe mọi IP (bắt buộc trên VPS)
   MQTT_TCP_PORT: parseInt(process.env.MQTT_TCP_PORT || '1883'),
   MQTT_WS_PORT: parseInt(process.env.MQTT_WS_PORT || '8883'),
+  ENABLE_MQTT: process.env.ENABLE_MQTT !== 'false',  // đặt =false nếu VPS không cần MQTT
+  CORS_ORIGIN: process.env.CORS_ORIGIN || '*',   // giới hạn domain khi lên production nếu muốn
+  // Thư mục frontend đã build (npm run build → frontend/dist). Có thể override bằng env.
+  FRONTEND_DIST: process.env.FRONTEND_DIST || require('path').join(__dirname, '..', '..', 'frontend', 'dist'),
 
   INTERSECTIONS: {
     hk01: {

@@ -36,7 +36,11 @@ function parseTagKey(key) {
 
 // ── Khởi tạo (async — server.js phải await trước khi engine.start()) ──────────
 async function init(customPath) {
-  dbPath = path.resolve(customPath || config.DB_PATH);
+  // Giải đường dẫn tương đối theo THƯ MỤC BACKEND (không theo cwd) — tránh lỗi
+  // khi chạy qua systemd/pm2 với WorkingDirectory khác.
+  const backendRoot = path.join(__dirname, '..', '..');
+  const p = customPath || config.DB_PATH;
+  dbPath = path.isAbsolute(p) ? p : path.join(backendRoot, p);
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
   const SQL = await initSqlJs();

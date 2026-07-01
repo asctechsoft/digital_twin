@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "digital-twin-traffic-backend": "file:../backend",
     "socket.io-client": "^4.7.5"
   },
   "devDependencies": {

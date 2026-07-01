@@ -7,6 +7,7 @@ const { Server } = require('socket.io');
 const cors     = require('cors');
 const morgan   = require('morgan');
 const path     = require('path');
+const fs       = require('fs');
 
 const config    = require('./src/config');
 const db         = require('./src/db/timeseries');
@@ -20,14 +21,20 @@ async function main() {
   const app = express();
   const httpServer = http.createServer(app);
   const io = new Server(httpServer, {
-    cors: { origin: '*' },
+    cors: { origin: config.CORS_ORIGIN },
     transports: ['websocket', 'polling'],
   });
 
-  app.use(cors());
+  app.use(cors({ origin: config.CORS_ORIGIN }));
   app.use(express.json());
   app.use(morgan('dev'));
-  app.use(express.static(path.join(__dirname, 'public')));
+
+  // ── Phục vụ frontend đã build (frontend/dist) nếu có, nếu không thì public/ ──
+  const frontendDir = fs.existsSync(path.join(config.FRONTEND_DIST, 'index.html'))
+    ? config.FRONTEND_DIST
+    : path.join(__dirname, 'public');
+  app.use(express.static(frontendDir));
+  console.log(`[WEB] Phục vụ giao diện từ: ${frontendDir}`);
 
   // ── Persistent SQLite store (phải sẵn sàng trước khi engine ghi dữ liệu) ────
   await db.init();
@@ -53,7 +60,15 @@ async function main() {
   // ── Mount REST API ────────────────────────────────────────────────────────
   app.use('/api/v1', createApiRouter(engine));
 
-  app.use((_req, res) => res.status(404).json({ success: false, error: 'Not found' }));
+  // API không tồn tại → JSON 404
+  app.use('/api', (_req, res) => res.status(404).json({ success: false, error: 'Not found' }));
+
+  // Mọi route GET còn lại → trả index.html (để mở http://VPS:PORT ra thẳng giao diện)
+  app.get('*', (_req, res) => {
+    const indexFile = path.join(frontendDir, 'index.html');
+    if (fs.existsSync(indexFile)) return res.sendFile(indexFile);
+    res.status(404).json({ success: false, error: 'Not found' });
+  });
 
   // ── Socket.io connections ─────────────────────────────────────────────────
   io.on('connection', socket => {
@@ -65,27 +80,33 @@ async function main() {
     });
   });
 
-  // ── MQTT broker ───────────────────────────────────────────────────────────
-  try {
-    await startBroker(io, engine);
-  } catch (err) {
-    console.warn('[MQTT] Broker failed to start:', err.message);
-    console.warn('[MQTT] Continuing without MQTT (check if port 1883 is in use)');
+  // ── MQTT broker (có thể tắt bằng ENABLE_MQTT=false) ─────────────────────────
+  if (config.ENABLE_MQTT) {
+    try {
+      await startBroker(io, engine);
+    } catch (err) {
+      console.warn('[MQTT] Broker failed to start:', err.message);
+      console.warn('[MQTT] Continuing without MQTT (check if port 1883 is in use)');
+    }
+  } else {
+    console.log('[MQTT] Bị tắt qua ENABLE_MQTT=false');
   }
 
   // ── Start engine simulation loop ──────────────────────────────────────────
   engine.start();
 
-  // ── Listen ────────────────────────────────────────────────────────────────
-  httpServer.listen(config.PORT, () => {
+  // ── Listen (0.0.0.0 để truy cập được từ ngoài VPS) ──────────────────────────
+  httpServer.listen(config.PORT, config.HOST, () => {
     console.log('\n╔══════════════════════════════════════════════════╗');
     console.log('║   Digital Twin Traffic — Backend Server           ║');
     console.log('╠══════════════════════════════════════════════════╣');
-    console.log(`║  Web UI  →  http://localhost:${config.PORT}                  ║`);
-    console.log(`║  REST    →  http://localhost:${config.PORT}/api/v1           ║`);
-    console.log(`║  Socket  →  ws://localhost:${config.PORT}                    ║`);
-    console.log(`║  MQTT    →  mqtt://localhost:${config.MQTT_TCP_PORT}               ║`);
-    console.log(`║  MQTT/WS →  ws://localhost:${config.MQTT_WS_PORT}                 ║`);
+    console.log(`║  Nghe tại  →  ${config.HOST}:${config.PORT}`);
+    console.log(`║  Web UI    →  http://<IP_VPS>:${config.PORT}`);
+    console.log(`║  REST      →  http://<IP_VPS>:${config.PORT}/api/v1`);
+    console.log(`║  Socket    →  ws://<IP_VPS>:${config.PORT}`);
+    if (config.ENABLE_MQTT) {
+      console.log(`║  MQTT      →  mqtt://<IP_VPS>:${config.MQTT_TCP_PORT}  |  ws://<IP_VPS>:${config.MQTT_WS_PORT}`);
+    }
     console.log('╚══════════════════════════════════════════════════╝\n');
   });
 }

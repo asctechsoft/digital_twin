@@ -7,8 +7,12 @@
 //
 // Có thể override bằng biến môi trường khi chạy:  VITE_BACKEND_URL=http://192.168.1.10:3000 npm run dev
 // ─────────────────────────────────────────────────────────────────────────────
+// Mặc định '' = same-origin: frontend gọi thẳng host đang phục vụ nó.
+//   • Khi backend phục vụ frontend (deploy 1 port trên VPS)  → tự nối đúng IP VPS.
+//   • Khi chạy dev `npm run dev` (port 5173)                  → đi qua proxy Vite sang :3000.
+// Muốn trỏ tới backend ở máy/khác cổng: đặt VITE_BACKEND_URL=http://<IP>:3000 khi build/dev.
 export const BACKEND_URL =
-  import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:3000';
+  import.meta.env.VITE_BACKEND_URL ?? '';
 
 // Base cho REST API. Nếu BACKEND_URL rỗng → dùng đường dẫn tương đối (qua proxy).
 export const API_BASE = (BACKEND_URL || '') + '/api/v1';
